@@ -1,0 +1,18 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Work+Sans:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Work Sans', 'Segoe UI', sans-serif;
+  @apply bg-slate-50 text-slate-900 antialiased;
+}
+
+.gradient-overlay {
+  background-image: radial-gradient(circle at top, rgba(16, 185, 129, 0.25), transparent 50%);
+}
+
+.heading-font {
+  font-family: 'Playfair Display', 'Times New Roman', serif;
+}

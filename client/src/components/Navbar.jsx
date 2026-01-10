@@ -1,0 +1,124 @@
+import { useState } from 'react';
+import MobileMenu from './MobileMenu';
+
+const Navbar = () => {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const navItems = [
+    { href: '/', label: 'Home' },
+    { href: '/marketplace', label: 'Business Directory' },
+    { href: '/register', label: 'Subscribe / Join Now' },
+    { href: '/marketplace', label: 'E-Shop' },
+    { href: '/services', label: 'Training & Consultancy' },
+    { href: '/media', label: 'TradeXTV' },
+    { href: '/events', label: 'Expo' },
+  ];
+
+  return (
+    <header className="w-full bg-white shadow-sm">
+      <div className="border-b border-slate-100">
+        <div className="max-w-[96%] mx-auto flex flex-wrap items-center justify-between gap-4 py-3">
+          <a href="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
+            <div className="h-10 w-10 rounded-full bg-[#0f3d2e] flex items-center justify-center text-white font-bold">
+              TE
+            </div>
+            <div className="leading-tight">
+              <p className="heading-font text-xl font-semibold text-[#0f3d2e]">
+                TradeEthiopia
+              </p>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                Business Hub
+              </p>
+            </div>
+          </a>
+
+          <div className="flex flex-wrap items-center gap-4 text-sm text-[#0f3d2e]">
+            {/* Mobile menu button */}
+            <button 
+              onClick={() => setMobileMenuOpen(true)}
+              className="p-2 md:hidden text-[#0f3d2e] hover:bg-slate-100 rounded-lg transition-colors"
+              aria-label="Open menu"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            
+            <div className="hidden md:flex items-center gap-4">
+              <div className="flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1">
+                <span className="text-xs font-semibold text-emerald-700">EN</span>
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+                <span className="text-xs font-semibold text-emerald-700">አማ</span>
+              </div>
+              <a href="/about" className="flex items-center gap-2 font-medium hover:text-emerald-600 transition-colors">
+                About
+                <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+              </a>
+              <a href="/cart" className="flex items-center gap-2 hover:text-emerald-600 transition-colors">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m0 0h8"
+                  />
+                </svg>
+                <span className="hidden sm:inline">Cart</span>
+              </a>
+              <a href="/register" className="bg-[#f7b733] hover:bg-[#f5a623] text-black font-semibold px-5 py-2 rounded-full">
+                Join Now
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <nav className="bg-gradient-to-r from-[#0f3d2e] via-[#155e42] to-[#0f3d2e] text-white hidden md:block">
+        <div className="max-w-[96%] mx-auto flex flex-wrap items-center gap-6 py-3 text-sm">
+          <a href="/" className="flex items-center gap-2 hover:text-emerald-200 transition-colors">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+            Home
+          </a>
+                    <a href="/eshop" className="flex items-center gap-2 hover:text-emerald-200 transition-colors">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+            E-Shop
+          </a>
+          <a href="/marketplace" className="flex items-center gap-2 hover:text-emerald-200 transition-colors">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+            Business Directory
+          </a>
+          <a href="/register" className="flex items-center gap-2 hover:text-emerald-200 transition-colors">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+            Subscribe / Join Now
+          </a>
+
+          <a href="/services" className="flex items-center gap-2 hover:text-emerald-200 transition-colors">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+            Training & Consultancy
+          </a>
+          <a href="/media" className="flex items-center gap-2 hover:text-emerald-200 transition-colors">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+            TradeXTV
+          </a>
+          <a href="/events" className="flex items-center gap-2 hover:text-emerald-200 transition-colors">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+            Expo
+          </a>
+        </div>
+      </nav>
+      <MobileMenu 
+        isOpen={mobileMenuOpen} 
+        onClose={() => setMobileMenuOpen(false)} 
+        navItems={navItems} 
+      />
+    </header>
+  );
+};
+
+export default Navbar;
