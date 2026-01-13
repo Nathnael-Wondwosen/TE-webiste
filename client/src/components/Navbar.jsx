@@ -1,8 +1,16 @@
 import { useState } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { logout } from '../redux/authSlice';
+import { useNavigate } from 'react-router-dom';
 import MobileMenu from './MobileMenu';
 
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { user } = useSelector((state) => state.auth);
 
   const navItems = [
     { href: '/', label: 'Home' },
@@ -13,6 +21,12 @@ const Navbar = () => {
     { href: '/media', label: 'TradeXTV' },
     { href: '/events', label: 'Expo' },
   ];
+  
+  const handleLogout = () => {
+    dispatch(logout());
+    navigate('/');
+    setProfileDropdownOpen(false);
+  };
 
   return (
     <header className="w-full bg-white shadow-sm">
@@ -71,9 +85,68 @@ const Navbar = () => {
                 </svg>
                 <span className="hidden sm:inline">Cart</span>
               </a>
-              <a href="/register" className="bg-[#f7b733] hover:bg-[#f5a623] text-black font-semibold px-5 py-2 rounded-full">
-                Join Now
-              </a>
+              
+              {user ? (
+                // Show profile dropdown when user is logged in
+                <div className="relative">
+                  <button
+                    onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                    className="flex items-center gap-2 bg-[#f7b733] hover:bg-[#f5a623] text-black font-semibold px-4 py-2 rounded-full transition-colors"
+                    aria-expanded={profileDropdownOpen}
+                    aria-haspopup="true"
+                  >
+                    <div className="h-6 w-6 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xs font-bold">
+                      {user.name?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                    <span>{user.name || user.email}</span>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className={`h-4 w-4 transition-transform ${profileDropdownOpen ? 'rotate-180' : ''}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  
+                  {profileDropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-2 z-50">
+                      <div className="px-4 py-2 border-b border-slate-100">
+                        <p className="text-sm font-medium text-slate-900">{user.name || 'User'}</p>
+                        <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                      </div>
+                      <div className="py-1">
+                        <button
+                          onClick={() => {
+                            if (user.role === 'Admin') {
+                              navigate('/admin');
+                            } else {
+                              // Add user dashboard route when available
+                              // navigate('/dashboard');
+                            }
+                            setProfileDropdownOpen(false);
+                          }}
+                          className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+                        >
+                          {user.role === 'Admin' ? 'Admin Dashboard' : 'My Profile'}
+                        </button>
+                        <button
+                          onClick={handleLogout}
+                          className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+                        >
+                          Logout
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // Show join now button when user is not logged in
+                <a href="/register" className="bg-[#f7b733] hover:bg-[#f5a623] text-black font-semibold px-5 py-2 rounded-full">
+                  Join Now
+                </a>
+              )}
             </div>
           </div>
         </div>

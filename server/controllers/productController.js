@@ -22,6 +22,8 @@ const createProduct = async (req, res) => {
   try {
     const payload = req.body;
     let imageUrls = [];
+    let categoryId = payload.category;
+    let status = payload.status;
 
     if (payload.images && typeof payload.images === 'string') {
       imageUrls = JSON.parse(payload.images);
@@ -43,11 +45,29 @@ const createProduct = async (req, res) => {
     }
 
     const slug = payload.name ? createSlug(payload.name) : undefined;
+    if (categoryId && !categoryId.match(/^[a-f\d]{24}$/i)) {
+      const categorySlug = categoryId.toLowerCase().replace(/\s+/g, '-');
+      let category = await Category.findOne({ $or: [{ name: categoryId }, { slug: categorySlug }] });
+      if (!category) {
+        category = await Category.create({ name: categoryId, slug: categorySlug });
+      }
+      categoryId = category._id;
+    }
+
+    if (!status) {
+      status = payload.approved === 'true' || payload.verified === 'true' ? 'approved' : 'pending';
+    }
+    const approved = status === 'approved';
+    const verified = status === 'approved';
 
     const product = await Product.create({
       ...payload,
       slug,
       images: imageUrls,
+      category: categoryId,
+      status,
+      approved,
+      verified,
       seller: req.user._id,
     });
 
@@ -66,6 +86,7 @@ const getProducts = async (req, res) => {
       productType,
       country,
       verified,
+      approved,
       sortBy,
       search,
       categorySlug,
@@ -75,6 +96,7 @@ const getProducts = async (req, res) => {
     if (productType) filters.productType = productType;
     if (country) filters.country = country;
     if (verified !== undefined) filters.verified = verified === 'true';
+    if (approved !== undefined) filters.approved = approved === 'true';
     if (sortBy) {
       if (sortBy === 'newest') {
         filters.createdAt = { $exists: true };
@@ -107,6 +129,45 @@ const getProducts = async (req, res) => {
       .sort(sortOptions)
       .skip(skip)
       .limit(Number(limit));
+
+    const categoryIdCandidates = new Set();
+    products.forEach((product) => {
+      if (typeof product.category === 'string') {
+        categoryIdCandidates.add(product.category);
+      } else if (product.category?.name && /^[a-f\d]{24}$/i.test(product.category.name)) {
+        categoryIdCandidates.add(product.category.name);
+      }
+    });
+
+    if (categoryIdCandidates.size) {
+      const categories = await Category.find({ _id: { $in: Array.from(categoryIdCandidates) } });
+      const categoryMap = categories.reduce((acc, category) => {
+        acc[category._id.toString()] = category;
+        return acc;
+      }, {});
+
+      await Promise.all(
+        products.map(async (product) => {
+          let match = null;
+          if (typeof product.category === 'string') {
+            match = categoryMap[product.category];
+          } else if (product.category?.name && categoryMap[product.category.name]) {
+            match = categoryMap[product.category.name];
+          }
+          if (match) {
+            product.category = match;
+            try {
+              await Product.updateOne(
+                { _id: product._id },
+                { category: match._id }
+              );
+            } catch (error) {
+              console.warn('Category repair failed', error);
+            }
+          }
+        })
+      );
+    }
 
     res.json({
       data: products,
@@ -153,7 +214,9 @@ const updateProduct = async (req, res) => {
     }
 
     const payload = req.body;
+    const isAdmin = req.user.role === 'Admin';
     let imageUrls = product.images || [];
+    let categoryId = payload.category;
 
     if (payload.images && typeof payload.images === 'string') {
       imageUrls = JSON.parse(payload.images);
@@ -177,11 +240,28 @@ const updateProduct = async (req, res) => {
     if (payload.name && payload.name !== product.name) {
       payload.slug = createSlug(payload.name);
     }
+    if (categoryId && !categoryId.match(/^[a-f\d]{24}$/i)) {
+      const categorySlug = categoryId.toLowerCase().replace(/\s+/g, '-');
+      let category = await Category.findOne({ $or: [{ name: categoryId }, { slug: categorySlug }] });
+      if (!category) {
+        category = await Category.create({ name: categoryId, slug: categorySlug });
+      }
+      categoryId = category._id;
+    }
+    if (payload.status && !isAdmin) {
+      delete payload.status;
+    }
+    if (payload.status && isAdmin) {
+      payload.approved = payload.status === 'approved';
+      payload.verified = payload.status === 'approved';
+    }
+
     const updated = await Product.findByIdAndUpdate(
       req.params.id,
       {
         ...payload,
         images: imageUrls,
+        ...(categoryId ? { category: categoryId } : {}),
       },
       { new: true }
     );
@@ -208,7 +288,19 @@ const deleteProduct = async (req, res) => {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
-    await product.remove();
+    if (product.images && product.images.length) {
+      const deletions = await Promise.allSettled(
+        product.images
+          .filter((image) => image.publicId)
+          .map((image) => cloudinary.uploader.destroy(image.publicId))
+      );
+      const failed = deletions.filter((result) => result.status === 'rejected');
+      if (failed.length) {
+        console.warn('Some Cloudinary deletions failed', failed.length);
+      }
+    }
+
+    await product.deleteOne();
     res.json({ message: 'Product deleted' });
   } catch (error) {
     console.error('Delete product error', error);

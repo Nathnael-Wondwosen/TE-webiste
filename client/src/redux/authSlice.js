@@ -4,6 +4,7 @@ import api from '../services/api';
 const initialState = {
   user: null,
   token: null,
+  refreshToken: null,
   status: 'idle',
   error: null,
 };
@@ -13,6 +14,13 @@ export const loginUser = createAsyncThunk(
   async (payload, { rejectWithValue }) => {
     try {
       const { data } = await api.post('/auth/login', payload);
+      // Store tokens in localStorage
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+      }
+      if (data.refreshToken) {
+        localStorage.setItem('refreshToken', data.refreshToken);
+      }
       return data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Login failed');
@@ -25,9 +33,61 @@ export const registerUser = createAsyncThunk(
   async (payload, { rejectWithValue }) => {
     try {
       const { data } = await api.post('/auth/register', payload);
+      // Store tokens in localStorage
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+      }
+      if (data.refreshToken) {
+        localStorage.setItem('refreshToken', data.refreshToken);
+      }
       return data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Registration failed');
+    }
+  }
+);
+
+export const googleAuth = createAsyncThunk(
+  'auth/googleAuth',
+  async (tokenId, { rejectWithValue }) => {
+    try {
+      const { data } = await api.post('/auth/google', { tokenId });
+      // Store tokens in localStorage
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+      }
+      if (data.refreshToken) {
+        localStorage.setItem('refreshToken', data.refreshToken);
+      }
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Google authentication failed');
+    }
+  }
+);
+
+export const refreshToken = createAsyncThunk(
+  'auth/refreshToken',
+  async (_, { rejectWithValue }) => {
+    try {
+      const storedRefreshToken = localStorage.getItem('refreshToken');
+      if (!storedRefreshToken) {
+        throw new Error('No refresh token available');
+      }
+      
+      const { data } = await api.post('/auth/refresh-token', { refreshToken: storedRefreshToken });
+      
+      // Update the token in localStorage
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+      }
+      
+      return data;
+    } catch (error) {
+      // Clear invalid tokens
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      return rejectWithValue(error.response?.data?.message || 'Failed to refresh token');
     }
   }
 );
@@ -39,7 +99,11 @@ const authSlice = createSlice({
     logout(state) {
       state.user = null;
       state.token = null;
+      state.refreshToken = null;
       state.status = 'idle';
+      // Clear tokens from localStorage
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
     },
   },
   extraReducers: (builder) => {
@@ -51,6 +115,7 @@ const authSlice = createSlice({
         state.status = 'succeeded';
         state.user = action.payload.user;
         state.token = action.payload.token;
+        state.refreshToken = action.payload.refreshToken;
         state.error = null;
       })
       .addCase(loginUser.rejected, (state, action) => {
@@ -64,11 +129,37 @@ const authSlice = createSlice({
         state.status = 'succeeded';
         state.user = action.payload.user;
         state.token = action.payload.token;
+        state.refreshToken = action.payload.refreshToken;
         state.error = null;
       })
       .addCase(registerUser.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
+      })
+      .addCase(googleAuth.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(googleAuth.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.user = action.payload.user;
+        state.token = action.payload.token;
+        state.refreshToken = action.payload.refreshToken;
+        state.error = null;
+      })
+      .addCase(googleAuth.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+      })
+      .addCase(refreshToken.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.token = action.payload.token;
+        state.error = null;
+      })
+      .addCase(refreshToken.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+        state.token = null;
+        state.user = null;
       });
   },
 });

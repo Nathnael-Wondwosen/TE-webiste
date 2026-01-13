@@ -1,190 +1,70 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Hero from '../components/Hero';
 import SidebarCategories from '../components/SidebarCategories';
 import ServiceCards from '../components/ServiceCards';
 import ProductCard from '../components/ProductCard';
-
-const demoProducts = [
-  {
-    _id: '1',
-    name: 'Ethiopian Coffee (Washed)',
-    price: 4.2,
-    unit: 'kg',
-    quantity: 60,
-    country: 'Ethiopia',
-    images: [
-      {
-        url: 'https://images.unsplash.com/photo-1528911535227-3e3ce63d9c8b?auto=format&fit=crop&w=900&q=80',
-      },
-    ],
-    category: 'Coffee',
-  },
-  {
-    _id: '2',
-    name: 'Leather Bags Bulk',
-    price: 22,
-    unit: 'bag',
-    quantity: 50,
-    country: 'Ethiopia',
-    images: [
-      {
-        url: 'https://images.unsplash.com/photo-1503341455253-b2e723bb3dbb?auto=format&fit=crop&w=900&q=80',
-      },
-    ],
-    category: 'Leather',
-  },
-  {
-    _id: '3',
-    name: 'Handwoven Textiles',
-    price: 15,
-    unit: 'roll',
-    quantity: 200,
-    country: 'Ethiopia',
-    images: [
-      {
-        url: 'https://images.unsplash.com/photo-1514996937319-344454492b37?auto=format&fit=crop&w=900&q=80',
-      },
-    ],
-    category: 'Textiles',
-  },
-  {
-    _id: '4',
-    name: 'Organic Spice Basket',
-    price: 6,
-    unit: 'kg',
-    quantity: 120,
-    country: 'Ethiopia',
-    images: [
-      {
-        url: 'https://images.unsplash.com/photo-1506806732259-39c2d0268443?auto=format&fit=crop&w=900&q=80',
-      },
-    ],
-    category: 'Spices',
-  },
-  {
-    _id: '5',
-    name: 'Premium Ethiopian Honey',
-    price: 8,
-    unit: 'kg',
-    quantity: 80,
-    country: 'Ethiopia',
-    images: [
-      {
-        url: 'https://images.unsplash.com/photo-1603569283847-aa6f0c79a462?auto=format&fit=crop&w=900&q=80',
-      },
-    ],
-    category: 'Honey',
-  },
-  {
-    _id: '6',
-    name: 'Ceramic Pottery Collection',
-    price: 35,
-    unit: 'set',
-    quantity: 30,
-    country: 'Ethiopia',
-    images: [
-      {
-        url: 'https://images.unsplash.com/photo-159125033e3a3e337a524a0e4fb9e0d9?auto=format&fit=crop&w=900&q=80',
-      },
-    ],
-    category: 'Ceramics',
-  },
-  {
-    _id: '7',
-    name: 'Gemstone Beads Assortment',
-    price: 12,
-    unit: 'pack',
-    quantity: 150,
-    country: 'Ethiopia',
-    images: [
-      {
-        url: 'https://images.unsplash.com/photo-1623874106680-c9e3a34a1e47?auto=format&fit=crop&w=900&q=80',
-      },
-    ],
-    category: 'Gemstones',
-  },
-  {
-    _id: '8',
-    name: 'Organic Sesame Seeds',
-    price: 3.5,
-    unit: 'kg',
-    quantity: 200,
-    country: 'Ethiopia',
-    images: [
-      {
-        url: 'https://images.unsplash.com/photo-1603569283847-aa6f0c79a462?auto=format&fit=crop&w=900&q=80',
-      },
-    ],
-    category: 'Spices',
-  },
-  {
-    _id: '9',
-    name: 'Cotton Fabric Wholesale',
-    price: 2.8,
-    unit: 'meter',
-    quantity: 500,
-    country: 'Ethiopia',
-    images: [
-      {
-        url: 'https://images.unsplash.com/photo-159125033e3a3e337a524a0e4fb9e0d9?auto=format&fit=crop&w=900&q=80',
-      },
-    ],
-    category: 'Textiles',
-  },
-  {
-    _id: '10',
-    name: 'Natural Leather Jackets',
-    price: 45,
-    unit: 'piece',
-    quantity: 25,
-    country: 'Ethiopia',
-    images: [
-      {
-        url: 'https://images.unsplash.com/photo-1503341455253-b2e723bb3dbb?auto=format&fit=crop&w=900&q=80',
-      },
-    ],
-    category: 'Leather',
-  },
-  {
-    _id: '11',
-    name: 'Specialty Coffee Beans',
-    price: 5.8,
-    unit: 'kg',
-    quantity: 90,
-    country: 'Ethiopia',
-    images: [
-      {
-        url: 'https://images.unsplash.com/photo-1528911535227-3e3ce63d9c8b?auto=format&fit=crop&w=900&q=80',
-      },
-    ],
-    category: 'Coffee',
-  },
-  {
-    _id: '12',
-    name: 'Handcrafted Jewelry Set',
-    price: 28,
-    unit: 'set',
-    quantity: 40,
-    country: 'Ethiopia',
-    images: [
-      {
-        url: 'https://images.unsplash.com/photo-1623874106680-c9e3a34a1e47?auto=format&fit=crop&w=900&q=80',
-      },
-    ],
-    category: 'Gemstones',
-  },
-];
+import api from '../services/api';
 
 function Home() {
   const [selectedCategory, setSelectedCategory] = useState('Coffee');
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
-  
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [categoryMap, setCategoryMap] = useState({});
+
+  useEffect(() => {
+    const fetchFeatured = async () => {
+      try {
+        setLoading(true);
+        const { data } = await api.get('/products?approved=true&verified=true&limit=12');
+        const products = data.data || [];
+        const featured = products.filter((product) => product.featured);
+        setFeaturedProducts(featured.length ? featured : products);
+      } catch (error) {
+        console.error('Error loading featured products', error);
+        setFeaturedProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchFeatured();
+  }, []);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const { data } = await api.get('/categories');
+        const map = (data || []).reduce((acc, category) => {
+          acc[category._id] = category.name;
+          return acc;
+        }, {});
+        setCategoryMap(map);
+      } catch (error) {
+        console.error('Error loading categories', error);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  const getCategoryName = (product) => {
+    if (!product.category) return 'Other';
+    if (typeof product.category === 'string') {
+      return categoryMap[product.category] || product.category;
+    }
+    if (product.category?.name && categoryMap[product.category.name]) {
+      return categoryMap[product.category.name];
+    }
+    return categoryMap[product.category?._id] || product.category?.name || 'Other';
+  };
+
   const filteredProducts = useMemo(() => {
     if (!selectedCategory) {
-      return demoProducts;
+      return featuredProducts;
     }
-    return demoProducts.filter((product) => product.category === selectedCategory);
-  }, [selectedCategory]);
+    return featuredProducts.filter(
+      (product) => getCategoryName(product) === selectedCategory
+    );
+  }, [selectedCategory, featuredProducts]);
 
   const handleCategorySelect = (category) => {
     setSelectedCategory(category);
@@ -265,9 +145,19 @@ function Home() {
                 </select>
               </div>
               <div className="mt-5 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-                {filteredProducts.map((product) => (
-                  <ProductCard key={product._id} product={product} />
-                ))}
+                {loading ? (
+                  <div className="col-span-full text-sm text-slate-500">
+                    Loading featured products...
+                  </div>
+                ) : filteredProducts.length > 0 ? (
+                  filteredProducts.map((product) => (
+                    <ProductCard key={product._id} product={product} />
+                  ))
+                ) : (
+                  <div className="col-span-full text-sm text-slate-500">
+                    No featured products available.
+                  </div>
+                )}
               </div>
             </div>
           </div>

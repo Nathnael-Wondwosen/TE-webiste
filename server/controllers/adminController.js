@@ -31,7 +31,16 @@ const updateUserRole = async (req, res) => {
 const createCategory = async (req, res) => {
   try {
     const { name, description, parent } = req.body;
+    if (!name) {
+      return res.status(400).json({ message: 'Category name is required' });
+    }
     const slug = name.toLowerCase().replace(/\s+/g, '-');
+    const existing = await Category.findOne({
+      $or: [{ name }, { slug }],
+    });
+    if (existing) {
+      return res.status(200).json(existing);
+    }
     const category = await Category.create({
       name,
       description,
@@ -45,6 +54,16 @@ const createCategory = async (req, res) => {
   }
 };
 
+const getCategories = async (req, res) => {
+  try {
+    const categories = await Category.find().sort({ name: 1 });
+    res.json(categories);
+  } catch (error) {
+    console.error('Get categories error', error);
+    res.status(500).json({ message: 'Unable to fetch categories' });
+  }
+};
+
 const approveProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -53,6 +72,7 @@ const approveProduct = async (req, res) => {
     }
     product.verified = true;
     product.approved = true;
+    product.status = 'approved';
     await product.save();
     res.json(product);
   } catch (error) {
@@ -60,6 +80,30 @@ const approveProduct = async (req, res) => {
     res.status(500).json({ message: 'Unable to approve product' });
   }
 };
+
+const updateProductStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    const allowed = ['pending', 'approved', 'disabled', 'hold'];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+    product.status = status;
+    product.approved = status === 'approved';
+    product.verified = status === 'approved';
+    await product.save();
+    res.json(product);
+  } catch (error) {
+    console.error('Update product status error', error);
+    res.status(500).json({ message: 'Unable to update product status' });
+  }
+};
+
+
 
 const getAnalytics = async (req, res) => {
   try {
@@ -84,7 +128,9 @@ const getAnalytics = async (req, res) => {
 module.exports = {
   getUsers,
   updateUserRole,
+  getCategories,
   createCategory,
   approveProduct,
+  updateProductStatus,
   getAnalytics,
 };

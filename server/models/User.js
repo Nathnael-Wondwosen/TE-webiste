@@ -16,7 +16,7 @@ const UserSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: true,
+      // Not required for Google OAuth users
     },
     role: {
       type: String,
@@ -33,6 +33,18 @@ const UserSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Google OAuth fields
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true, // Allows multiple null values
+    },
+    picture: String,
+    // Track if user signed up via Google
+    isOAuthUser: {
+      type: Boolean,
+      default: false,
+    },
     cart: [
       {
         product: {
@@ -44,6 +56,12 @@ const UserSchema = new mongoose.Schema(
           default: 1,
         },
         priceAtPurchase: Number,
+      },
+    ],
+    favorites: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Product',
       },
     ],
   },

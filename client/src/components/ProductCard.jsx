@@ -1,7 +1,98 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, Heart, ShoppingCart, Share2 } from 'lucide-react';
+import api from '../services/api';
+
+let favoritesCache = null;
+let favoritesPromise = null;
+
+const getFavoritesCache = async () => {
+  if (favoritesCache) return favoritesCache;
+  if (!favoritesPromise) {
+    favoritesPromise = api.get('/users/favorites').then((response) => {
+      const favorites = response.data?.favorites || [];
+      favoritesCache = new Set(favorites.map((id) => id.toString()));
+      return favoritesCache;
+    });
+  }
+  return favoritesPromise;
+};
+
+const updateFavoritesCache = (productId, shouldAdd) => {
+  if (!favoritesCache) return;
+  if (shouldAdd) {
+    favoritesCache.add(productId);
+  } else {
+    favoritesCache.delete(productId);
+  }
+};
 
 function ProductCard({ product }) {
+  const [isFavorite, setIsFavorite] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token || !product?._id) return;
+    getFavoritesCache()
+      .then((favorites) => setIsFavorite(favorites.has(product._id)))
+      .catch(() => {});
+  }, [product?._id]);
+
+  const requireAuth = () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      window.location.href = '/login';
+      return false;
+    }
+    return true;
+  };
+
+  const handleToggleFavorite = async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!requireAuth()) return;
+    const next = !isFavorite;
+    setIsFavorite(next);
+    try {
+      if (next) {
+        await api.post('/users/favorites', { productId: product._id });
+      } else {
+        await api.delete(`/users/favorites/${product._id}`);
+      }
+      updateFavoritesCache(product._id, next);
+    } catch (error) {
+      setIsFavorite(!next);
+      console.error('Favorite update failed', error);
+    }
+  };
+
+  const handleAddToCart = async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!requireAuth()) return;
+    try {
+      await api.post('/orders/cart', { productId: product._id, quantity: 1 });
+    } catch (error) {
+      console.error('Add to cart failed', error);
+    }
+  };
+
+  const handleShare = async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const url = `${window.location.origin}/product/${product?._id ?? ''}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: product?.name, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        alert('Product link copied.');
+      }
+    } catch (error) {
+      console.error('Share failed', error);
+    }
+  };
+
   return (
     <article className="bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col border border-slate-100 relative">
       <div
@@ -17,6 +108,33 @@ function ProductCard({ product }) {
           <span className="h-2 w-2 rounded-full bg-white"></span>
           Pro
         </span>
+      </div>
+      <div className="absolute top-3 left-3 flex flex-col gap-2">
+        <button
+          onClick={handleToggleFavorite}
+          className={`h-9 w-9 rounded-full border flex items-center justify-center shadow-sm transition ${
+            isFavorite
+              ? 'bg-rose-500 border-rose-500 text-white'
+              : 'bg-white/90 border-white text-slate-700 hover:text-rose-500'
+          }`}
+          aria-label="Toggle favorite"
+        >
+          <Heart className={`h-4 w-4 ${isFavorite ? 'fill-white' : ''}`} />
+        </button>
+        <button
+          onClick={handleAddToCart}
+          className="h-9 w-9 rounded-full border border-white bg-white/90 text-slate-700 flex items-center justify-center shadow-sm hover:text-emerald-600 transition"
+          aria-label="Add to cart"
+        >
+          <ShoppingCart className="h-4 w-4" />
+        </button>
+        <button
+          onClick={handleShare}
+          className="h-9 w-9 rounded-full border border-white bg-white/90 text-slate-700 flex items-center justify-center shadow-sm hover:text-slate-900 transition"
+          aria-label="Share product"
+        >
+          <Share2 className="h-4 w-4" />
+        </button>
       </div>
       <div className="px-4 py-3 flex-1 flex flex-col">
         <div className="flex items-start justify-between gap-2">
@@ -38,9 +156,17 @@ function ProductCard({ product }) {
           </div>
         </div>
         <div className="mt-3 text-xs md:text-sm text-slate-500 flex items-center justify-between">
-          <span className="inline-flex items-center gap-1 md:gap-2 rounded-full bg-emerald-50 px-2 md:px-3 py-0.5 md:py-1 text-emerald-700 text-xs font-semibold">
-            Verified
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 md:gap-2 rounded-full bg-emerald-50 px-2 md:px-3 py-0.5 md:py-1 text-emerald-700 text-xs font-semibold">
+              Verified
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 md:px-3 py-0.5 md:py-1 text-amber-700 text-xs font-semibold">
+              {(product?.averageRating || product?.rating || 0).toFixed?.(1) || (product?.averageRating || product?.rating || 0)} ★
+              <span className="text-[10px] text-amber-600/80">
+                ({product?.ratingsCount || 0})
+              </span>
+            </span>
+          </div>
           <Link
             to={`/product/${product?._id ?? ''}`}
             className="inline-flex items-center gap-0.5 md:gap-1 text-emerald-700 font-semibold text-xs md:text-sm"

@@ -1,4 +1,4 @@
-﻿import { useState, useMemo } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import {
   Search,
   Filter,
@@ -19,6 +19,7 @@ import {
   List,
 } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
+import api from '../services/api';
 
 const Eshop = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -30,147 +31,36 @@ const Eshop = () => {
   const [inStockOnly, setInStockOnly] = useState(false);
   const [selectedCertifications, setSelectedCertifications] = useState([]);
 
-  // Sample products data for the Eshop
-  const products = [
-    {
-      _id: '1',
-      name: 'Ethiopian Coffee (Washed)',
-      price: 4.2,
-      unit: 'kg',
-      quantity: 60,
-      country: 'Ethiopia',
-      images: [
-        {
-          url: 'https://images.unsplash.com/photo-1528911535227-3e3ce63d9c8b?auto=format&fit=crop&w=900&q=80',
-        },
-      ],
-      category: 'Coffee',
-      rating: 4.8,
-      reviews: 124,
-      certifications: ['Organic', 'Fair Trade'],
-    },
-    {
-      _id: '2',
-      name: 'Leather Bags Bulk',
-      price: 22,
-      unit: 'bag',
-      quantity: 50,
-      country: 'Ethiopia',
-      images: [
-        {
-          url: 'https://images.unsplash.com/photo-1503341455253-b2e723bb3dbb?auto=format&fit=crop&w=900&q=80',
-        },
-      ],
-      category: 'Leather',
-      rating: 4.6,
-      reviews: 89,
-      certifications: ['Quality Assured'],
-    },
-    {
-      _id: '3',
-      name: 'Handwoven Textiles',
-      price: 15,
-      unit: 'roll',
-      quantity: 200,
-      country: 'Ethiopia',
-      images: [
-        {
-          url: 'https://images.unsplash.com/photo-1514996937319-344454492b37?auto=format&fit=crop&w=900&q=80',
-        },
-      ],
-      category: 'Textiles',
-      rating: 4.9,
-      reviews: 156,
-      certifications: ['Fair Trade', 'ISO Certified'],
-    },
-    {
-      _id: '4',
-      name: 'Organic Spice Basket',
-      price: 6,
-      unit: 'kg',
-      quantity: 120,
-      country: 'Ethiopia',
-      images: [
-        {
-          url: 'https://images.unsplash.com/photo-1506806732259-39c2d0268443?auto=format&fit=crop&w=900&q=80',
-        },
-      ],
-      category: 'Spices',
-      rating: 4.7,
-      reviews: 78,
-      certifications: ['Organic', 'Quality Assured'],
-    },
-    {
-      _id: '5',
-      name: 'Premium Ethiopian Honey',
-      price: 8,
-      unit: 'kg',
-      quantity: 80,
-      country: 'Ethiopia',
-      images: [
-        {
-          url: 'https://images.unsplash.com/photo-1603569283847-aa6f0c79a462?auto=format&fit=crop&w=900&q=80',
-        },
-      ],
-      category: 'Honey',
-      rating: 4.9,
-      reviews: 203,
-      certifications: ['Organic', 'Quality Assured'],
-    },
-    {
-      _id: '6',
-      name: 'Ceramic Pottery Collection',
-      price: 35,
-      unit: 'set',
-      quantity: 30,
-      country: 'Ethiopia',
-      images: [
-        {
-          url: 'https://images.unsplash.com/photo-159125033e3a3e337a524a0e4fb9e0d9?auto=format&fit=crop&w=900&q=80',
-        },
-      ],
-      category: 'Ceramics',
-      rating: 4.5,
-      reviews: 67,
-      certifications: ['ISO Certified'],
-    },
-    {
-      _id: '7',
-      name: 'Gemstone Beads Assortment',
-      price: 12,
-      unit: 'pack',
-      quantity: 150,
-      country: 'Ethiopia',
-      images: [
-        {
-          url: 'https://images.unsplash.com/photo-1623874106680-c9e3a34a1e47?auto=format&fit=crop&w=900&q=80',
-        },
-      ],
-      category: 'Gemstones',
-      rating: 4.8,
-      reviews: 92,
-      certifications: ['Quality Assured'],
-    },
-    {
-      _id: '8',
-      name: 'Organic Sesame Seeds',
-      price: 3.5,
-      unit: 'kg',
-      quantity: 200,
-      country: 'Ethiopia',
-      images: [
-        {
-          url: 'https://images.unsplash.com/photo-1603569283847-aa6f0c79a462?auto=format&fit=crop&w=900&q=80',
-        },
-      ],
-      category: 'Spices',
-      rating: 4.6,
-      reviews: 115,
-      certifications: ['Organic'],
-    },
-  ];
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
-  const categories = ['All', 'Coffee', 'Leather', 'Textiles', 'Spices', 'Honey', 'Ceramics', 'Gemstones'];
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        const { data } = await api.get('/products?approved=true&verified=true&limit=200');
+        setProducts(data.data || []);
+      } catch (error) {
+        console.error('Error loading products', error);
+        setProducts([]);
+      } finally {
+        setLoading(false);
+        setHasLoaded(true);
+      }
+    };
+    fetchProducts();
+  }, []);
+
+  const getCategoryName = (product) =>
+    typeof product.category === 'string'
+      ? product.category
+      : product.category?.name || 'Other';
+
+  const categories = useMemo(() => {
+    const names = products.map(getCategoryName).filter(Boolean);
+    return ['All', ...Array.from(new Set(names))];
+  }, [products]);
   const mobileCategoryTiles = [
     { label: 'Coffee', value: 'Coffee', icon: Coffee, accent: 'from-amber-300 to-amber-500' },
     { label: 'Leather', value: 'Leather', icon: Briefcase, accent: 'from-rose-300 to-rose-500' },
@@ -185,14 +75,17 @@ const Eshop = () => {
   // Filter products based on search, category, and price range
   const filteredProducts = useMemo(() => {
     let result = products.filter(product => {
+      const categoryName = getCategoryName(product);
+      const rating = product.averageRating || product.rating || 0;
+      const certifications = product.certifications || [];
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           product.category.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
+                           categoryName.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = selectedCategory === 'All' || categoryName === selectedCategory;
       const matchesPrice = product.price >= priceRange[0] && product.price <= priceRange[1];
-      const matchesRating = product.rating >= minRating;
+      const matchesRating = rating >= minRating;
       const matchesStock = !inStockOnly || product.quantity > 0;
       const matchesCertifications = selectedCertifications.length === 0 || 
-                                   selectedCertifications.every(cert => product.certifications?.includes(cert));
+                                   selectedCertifications.every(cert => certifications.includes(cert));
 
       return matchesSearch && matchesCategory && matchesPrice && matchesRating && matchesStock && matchesCertifications;
     });
@@ -206,18 +99,18 @@ const Eshop = () => {
         result.sort((a, b) => b.price - a.price);
         break;
       case 'rating':
-        result.sort((a, b) => b.rating - a.rating);
+        result.sort((a, b) => (b.averageRating || b.rating || 0) - (a.averageRating || a.rating || 0));
         break;
       case 'newest':
-        // In a real app, this would sort by creation date
+        result.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
         break;
       default:
         // Recommended sorting (by rating, then by id)
-        result.sort((a, b) => b.rating - a.rating || (b._id - a._id));
+        result.sort((a, b) => (b.averageRating || b.rating || 0) - (a.averageRating || a.rating || 0) || (b._id - a._id));
     }
 
     return result;
-  }, [searchTerm, selectedCategory, priceRange, sortBy, minRating, inStockOnly, selectedCertifications]);
+  }, [products, searchTerm, selectedCategory, priceRange, sortBy, minRating, inStockOnly, selectedCertifications]);
 
   const highlightStores = products.slice(0, 5);
   const mobileNewArrivals = filteredProducts.slice(0, 6);
@@ -319,7 +212,7 @@ const Eshop = () => {
                       }}
                     />
                     <div className="p-3">
-                      <p className="text-[11px] text-slate-500">{item.category}</p>
+                      <p className="text-[11px] text-slate-500">{getCategoryName(item)}</p>
                       <h3 className="text-sm font-semibold text-[#0f3d2e] leading-snug">
                         {item.name}
                       </h3>
@@ -404,7 +297,7 @@ const Eshop = () => {
                       }}
                     />
                     <div className="p-3">
-                      <p className="text-[11px] text-slate-500">{product.category}</p>
+                      <p className="text-[11px] text-slate-500">{getCategoryName(product)}</p>
                       <h3 className="text-sm font-semibold text-[#0f3d2e] leading-snug">
                         {product.name}
                       </h3>
@@ -414,7 +307,7 @@ const Eshop = () => {
                         </span>
                         <span className="inline-flex items-center gap-1 text-[11px] text-amber-600">
                           <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                          {product.rating}
+                          {product.averageRating || product.rating || 0}
                         </span>
                       </div>
                     </div>
@@ -466,7 +359,7 @@ const Eshop = () => {
                         }}
                       />
                       <div className="flex-1">
-                        <p className="text-[11px] text-slate-500">{product.category}</p>
+                        <p className="text-[11px] text-slate-500">{getCategoryName(product)}</p>
                         <h3 className="text-sm font-semibold text-[#0f3d2e] leading-snug">
                           {product.name}
                         </h3>
@@ -496,7 +389,7 @@ const Eshop = () => {
                         }}
                       />
                       <div className="p-3">
-                        <p className="text-[11px] text-slate-500">{product.category}</p>
+                        <p className="text-[11px] text-slate-500">{getCategoryName(product)}</p>
                         <h3 className="text-sm font-semibold text-[#0f3d2e] leading-snug">
                           {product.name}
                         </h3>
@@ -724,12 +617,16 @@ const Eshop = () => {
                 </p>
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Filter className="h-4 w-4" />
-                  <span>Active filters</span>
+                  <span>{loading ? 'Loading products...' : 'Active filters'}</span>
                 </div>
               </div>
 
               {/* Products Grid */}
-              {filteredProducts.length > 0 ? (
+              {!hasLoaded ? (
+                <div className="text-center py-16 bg-white rounded-2xl border border-slate-200 text-slate-500">
+                  Loading products...
+                </div>
+              ) : filteredProducts.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredProducts.map((product) => (
                     <ProductCard key={product._id} product={product} />
@@ -746,6 +643,10 @@ const Eshop = () => {
                       setSelectedCategory('All');
                       setPriceRange([0, 1000]);
                       setSortBy('recommended');
+                      setMinRating(0);
+                      setInStockOnly(false);
+                      setSelectedCertifications([]);
+                      setProductView('list');
                     }}
                     className="bg-[#0f3d2e] hover:bg-[#124b38] text-white px-8 py-3 rounded-xl font-semibold text-sm transition-colors"
                   >
