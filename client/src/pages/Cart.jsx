@@ -48,7 +48,7 @@ const Cart = () => {
         <div className="text-center py-12 text-slate-500">Loading cart...</div>
       ) : cartItems.length === 0 ? (
         <div className="text-center py-12">
-          <div className="text-5xl mb-4">dY>'</div>
+          <div className="text-5xl mb-4">🛒</div>
           <h2 className="text-xl font-semibold text-gray-700 mb-2">Your cart is empty</h2>
           <p className="text-gray-500 mb-6">Looks like you haven't added any items to your cart yet</p>
           <a 
