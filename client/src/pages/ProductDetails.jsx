@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import { Star } from 'lucide-react';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
+import MediaLightbox from '../components/MediaLightbox';
 
 function ProductDetails() {
   const { id } = useParams();
@@ -15,6 +16,9 @@ function ProductDetails() {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [savingReview, setSavingReview] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [activeMediaIndex, setActiveMediaIndex] = useState(0);
+  const [thumbTouchStart, setThumbTouchStart] = useState(null);
 
   const cachedProduct = useMemo(() => items.find((item) => item._id === id), [items, id]);
 
@@ -94,6 +98,39 @@ function ProductDetails() {
 
   const averageRating = product?.averageRating || product?.rating || 0;
   const ratingsCount = product?.ratingsCount || reviews.length;
+  const mediaItems = [
+    ...(product?.images || []).map((image) => ({
+      type: 'image',
+      url: image.url,
+      title: product?.name,
+    })),
+    ...(product?.videos || []).map((video) => ({
+      type: 'video',
+      provider: video.provider,
+      embedUrl: video.embedUrl || video.url,
+      url: video.url,
+      thumbnail: video.thumbnail,
+      title: product?.name,
+    })),
+  ];
+
+  const handleThumbTouchStart = (event) => {
+    const touch = event.touches[0];
+    if (!touch) return;
+    setThumbTouchStart({ x: touch.clientX, y: touch.clientY });
+  };
+
+  const handleThumbTouchEnd = (event) => {
+    const touch = event.changedTouches[0];
+    if (!touch || !thumbTouchStart || mediaItems.length <= 1) return;
+    const deltaX = touch.clientX - thumbTouchStart.x;
+    const deltaY = touch.clientY - thumbTouchStart.y;
+    if (Math.abs(deltaX) < 40 || Math.abs(deltaX) < Math.abs(deltaY)) return;
+    const next = deltaX < 0
+      ? (activeMediaIndex + 1) % mediaItems.length
+      : (activeMediaIndex - 1 + mediaItems.length) % mediaItems.length;
+    setActiveMediaIndex(next);
+  };
 
   if (loading) {
     return (
@@ -112,22 +149,87 @@ function ProductDetails() {
   }
 
   return (
-    <section className="max-w-5xl mx-auto px-4 py-8">
+    <>
+      <section className="max-w-5xl mx-auto px-4 py-8">
       <div className="grid gap-6 md:grid-cols-[1fr,380px]">
         <div className="bg-white rounded-3xl shadow p-6">
           <div className="mb-5 overflow-hidden rounded-2xl bg-slate-100">
-            {product?.images?.length ? (
-              <img
-                src={product.images[0].url}
-                alt={product.name}
-                className="h-72 w-full object-cover"
-              />
+            {mediaItems.length ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveMediaIndex(0);
+                  setLightboxOpen(true);
+                }}
+                className="block w-full"
+              >
+                <img
+                  src={mediaItems[0].type === 'image' ? mediaItems[0].url : (mediaItems[0].thumbnail || product.images?.[0]?.url)}
+                  alt={product.name}
+                  className="h-72 w-full object-cover"
+                />
+              </button>
             ) : (
               <div className="flex h-72 w-full items-center justify-center text-sm text-slate-400">
-                No image available
+                No media available
               </div>
             )}
           </div>
+          {mediaItems.length > 1 && (
+            <div className="mb-6">
+              <div className="hidden sm:flex items-center justify-between mb-3">
+                <span className="text-xs uppercase tracking-[0.3em] text-slate-400">Media</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveMediaIndex((prev) => (prev - 1 + mediaItems.length) % mediaItems.length)}
+                    className="h-8 w-8 rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50"
+                    aria-label="Previous media"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveMediaIndex((prev) => (prev + 1) % mediaItems.length)}
+                    className="h-8 w-8 rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50"
+                    aria-label="Next media"
+                  >
+                    ›
+                  </button>
+                </div>
+              </div>
+              <div
+                className="grid grid-cols-3 gap-3"
+                onTouchStart={handleThumbTouchStart}
+                onTouchEnd={handleThumbTouchEnd}
+              >
+              {mediaItems.map((media, index) => (
+                <button
+                  key={`${media.type}-${index}`}
+                  type="button"
+                  onClick={() => {
+                    setActiveMediaIndex(index);
+                    setLightboxOpen(true);
+                  }}
+                  className={`group relative overflow-hidden rounded-xl border ${
+                    index === activeMediaIndex ? 'border-emerald-300' : 'border-slate-200'
+                  }`}
+                >
+                  <img
+                    src={media.type === 'image' ? media.url : (media.thumbnail || product.images?.[0]?.url)}
+                    alt={product.name}
+                    className="h-24 w-full object-cover"
+                  />
+                  {media.type === 'video' && (
+                    <span className="absolute inset-0 flex items-center justify-center bg-black/30 text-white text-xs font-semibold">
+                      Play video
+                    </span>
+                  )}
+                </button>
+              ))}
+              </div>
+            </div>
+          )}
           <h1 className="text-2xl font-semibold mb-2">{product.name}</h1>
           <p className="text-slate-500 mb-4">
             {product.description || 'Detailed product description coming soon.'}
@@ -241,7 +343,14 @@ function ProductDetails() {
         </div>
       </div>
     </section>
-  );
+    <MediaLightbox
+      isOpen={lightboxOpen}
+      onClose={() => setLightboxOpen(false)}
+      mediaItems={mediaItems}
+      initialIndex={activeMediaIndex}
+    />
+    </>
+  )
 }
 
 export default ProductDetails;

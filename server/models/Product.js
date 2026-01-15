@@ -17,6 +17,14 @@ const ProductSchema = new mongoose.Schema(
         publicId: String,
       },
     ],
+    videos: [
+      {
+        url: String,
+        provider: String,
+        embedUrl: String,
+        thumbnail: String,
+      },
+    ],
     category: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Category',

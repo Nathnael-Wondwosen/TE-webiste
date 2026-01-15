@@ -1,7 +1,9 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Company = require('../models/Company');
+const SellerProfile = require('../models/SellerProfile');
 const axios = require('axios');
+const bcryptjs = require('bcryptjs');
 
 const generateToken = (userId) => {
   if (!process.env.JWT_SECRET) {
@@ -131,11 +133,22 @@ const register = async (req, res) => {
       companyDoc = await Company.create(company);
     }
 
+    // Handle role assignment based on user request
+    let assignedRole = 'Buyer'; // Default role
+    
+    if (role === 'Seller') {
+      // For sellers, assign 'ProspectiveSeller' initially
+      // They will go through onboarding before becoming active sellers
+      assignedRole = 'ProspectiveSeller';
+    } else if (['Admin', 'Buyer'].includes(role)) {
+      assignedRole = role;
+    }
+    
     const user = await User.create({
       name,
       email,
       password,
-      role: role || 'Buyer',
+      role: assignedRole,
       company: companyDoc ? companyDoc._id : undefined,
     });
 
@@ -212,14 +225,25 @@ const googleAuth = async (req, res) => {
       }
       await user.save();
     } else {
-      // Create new user with default Buyer role
+      // For OAuth registration, check if role was specified in request
+      // Otherwise default to Buyer role
+      const requestedRole = req.body.role;
+      let assignedRole = 'Buyer'; // Default role
+      
+      if (requestedRole === 'Seller') {
+        // For sellers, assign 'ProspectiveSeller' initially
+        assignedRole = 'ProspectiveSeller';
+      } else if (['Admin', 'Buyer'].includes(requestedRole)) {
+        assignedRole = requestedRole;
+      }
+      
       user = await User.create({
         name,
         email,
         googleId: sub,
         picture,
         isOAuthUser: true, // Mark as OAuth user
-        role: 'Buyer', // Default role for new users
+        role: assignedRole, // Assign role based on request or default
       });
     }
 
@@ -270,6 +294,95 @@ const refreshToken = async (req, res) => {
   }
 };
 
+const updateUserRole = async (req, res) => {
+  try {
+    // Only admins or the user themselves can update role-related info
+    if (req.user.role !== 'Admin' && req.user._id.toString() !== req.params.userId) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    
+    const { userId } = req.params;
+    const { role } = req.body;
+    
+    // Only allow certain role transitions
+    const validTransitions = {
+      'ProspectiveSeller': ['Seller'], // Can become a seller after onboarding
+      'Seller': ['ProspectiveSeller'], // Can downgrade back to pending
+      'Buyer': [] // Buyers remain buyers unless admin changes
+    };
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Allow admin to change any role, or auto-promotion for onboarding
+    if (req.user.role === 'Admin' || 
+        (user._id.toString() === req.user._id.toString() && 
+         user.role === 'ProspectiveSeller' && 
+         role === 'Seller' &&
+         req.body.completedOnboarding)) {
+      
+      if (role && validTransitions[user.role]?.includes(role)) {
+        user.role = role;
+        await user.save();
+        
+        res.json({
+          message: `User role updated to ${role}`,
+          user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+          }
+        });
+      } else {
+        res.status(400).json({ message: 'Invalid role transition' });
+      }
+    } else {
+      res.status(403).json({ message: 'Insufficient permissions for role change' });
+    }
+    
+  } catch (error) {
+    console.error('Update user role error', error);
+    res.status(500).json({ message: 'Unable to update user role' });
+  }
+};
+
+const getProspectiveSellers = async (req, res) => {
+  try {
+    // Only admins can access this endpoint
+    if (req.user.role !== 'Admin') {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    
+    // First, find all users with ProspectiveSeller role
+    const users = await User.find({ role: 'ProspectiveSeller' })
+      .select('name email createdAt _id') // Only return necessary fields
+      .lean(); // Use lean() to get plain JS objects
+    
+    // Then, find seller profiles for these users
+    const userIds = users.map(user => user._id);
+    const sellerProfiles = await SellerProfile.find({ seller: { $in: userIds } })
+      .select('contactPhone contactEmail shopName bio onboardingCompleted')
+      .lean();
+    
+    // Combine the data
+    const result = users.map(user => {
+      const profile = sellerProfiles.find(p => p.seller.toString() === user._id.toString());
+      return {
+        ...user,
+        sellerProfile: profile || null
+      };
+    });
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Get prospective sellers error', error);
+    res.status(500).json({ message: 'Unable to fetch prospective sellers' });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -278,4 +391,6 @@ module.exports = {
   refreshToken,
   createInitialAdmin,
   createAdminBySuper,
+  updateUserRole,
+  getProspectiveSellers,
 };

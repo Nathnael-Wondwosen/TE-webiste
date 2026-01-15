@@ -12,6 +12,8 @@ const serviceRoutes = require('./routes/serviceRoutes');
 const advertisementRoutes = require('./routes/advertisementRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const userRoutes = require('./routes/userRoutes');
+const sellerRoutes = require('./routes/sellerRoutes');
+const shopRoutes = require('./routes/shopRoutes');
 
 const app = express();
 
@@ -28,6 +30,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/advertisements', advertisementRoutes);
+app.use('/api/seller', sellerRoutes);
+app.use('/api/shops', shopRoutes);
 
 app.get('/', (req, res) => {
   res.send('B2B marketplace API running');

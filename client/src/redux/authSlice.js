@@ -49,9 +49,12 @@ export const registerUser = createAsyncThunk(
 
 export const googleAuth = createAsyncThunk(
   'auth/googleAuth',
-  async (tokenId, { rejectWithValue }) => {
+  async (payload, { rejectWithValue }) => {
     try {
-      const { data } = await api.post('/auth/google', { tokenId });
+      // Handle both string tokenId (legacy) and object with tokenId and role
+      const requestData = typeof payload === 'string' ? { tokenId: payload } : payload;
+      
+      const { data } = await api.post('/auth/google', requestData);
       // Store tokens in localStorage
       if (data.token) {
         localStorage.setItem('token', data.token);

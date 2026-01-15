@@ -14,12 +14,12 @@ const Navbar = () => {
 
   const navItems = [
     { href: '/', label: 'Home' },
-    { href: '/marketplace', label: 'Business Directory' },
-    { href: '/register', label: 'Subscribe / Join Now' },
-    { href: '/marketplace', label: 'E-Shop' },
-    { href: '/services', label: 'Training & Consultancy' },
-    { href: '/media', label: 'TradeXTV' },
-    { href: '/events', label: 'Expo' },
+    { href: 'https://bunatalecoffee.com', label: 'Bunatale' },
+    { href: '/eshop', label: 'E-Shop' },
+    { href: 'https://tesbinn.com', label: 'Training & Consultancy' },
+    { href: 'https://tradethiopiantv.com', label: 'TradeXTV' },
+    { href: 'https://tradethiopiaexpo.com', label: 'Expo' },
+    { href: '/business-directory', label: 'Business Directory' },
   ];
   
   const handleLogout = () => {
@@ -117,6 +117,17 @@ const Navbar = () => {
                         <p className="text-xs text-slate-500 truncate">{user.email}</p>
                       </div>
                       <div className="py-1">
+                        {user.role === 'Seller' && (
+                          <button
+                            onClick={() => {
+                              navigate('/seller');
+                              setProfileDropdownOpen(false);
+                            }}
+                            className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+                          >
+                            Seller Hub
+                          </button>
+                        )}
                         <button
                           onClick={() => {
                             if (user.role === 'Admin') {
@@ -158,30 +169,30 @@ const Navbar = () => {
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
             Home
           </a>
-                    <a href="/eshop" className="flex items-center gap-2 hover:text-emerald-200 transition-colors">
+          <a href="/eshop" className="flex items-center gap-2 hover:text-emerald-200 transition-colors">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
             E-Shop
           </a>
-          <a href="/marketplace" className="flex items-center gap-2 hover:text-emerald-200 transition-colors">
+          <a href="https://bunatalecoffee.com" className="flex items-center gap-2 hover:text-emerald-200 transition-colors" target="_blank" rel="noreferrer">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
-            Business Directory
-          </a>
-          <a href="/register" className="flex items-center gap-2 hover:text-emerald-200 transition-colors">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
-            Subscribe / Join Now
+            Bunatale
           </a>
 
-          <a href="/services" className="flex items-center gap-2 hover:text-emerald-200 transition-colors">
+          <a href="https://tesbinn.com" className="flex items-center gap-2 hover:text-emerald-200 transition-colors" target="_blank" rel="noreferrer">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
             Training & Consultancy
           </a>
-          <a href="/media" className="flex items-center gap-2 hover:text-emerald-200 transition-colors">
+          <a href="https://tradethiopiantv.com" className="flex items-center gap-2 hover:text-emerald-200 transition-colors" target="_blank" rel="noreferrer">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
             TradeXTV
           </a>
-          <a href="/events" className="flex items-center gap-2 hover:text-emerald-200 transition-colors">
+          <a href="https://tradethiopiaexpo.com" className="flex items-center gap-2 hover:text-emerald-200 transition-colors" target="_blank" rel="noreferrer">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
             Expo
+          </a>
+          <a href="/business-directory" className="flex items-center gap-2 hover:text-emerald-200 transition-colors">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+            Business Directory
           </a>
         </div>
       </nav>

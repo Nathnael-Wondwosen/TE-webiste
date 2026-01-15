@@ -11,6 +11,7 @@ function Register() {
     name: '',
     email: '',
     password: '',
+    role: 'Buyer', // Default role
   });
   const googleButtonRef = useRef(null);
   
@@ -94,7 +95,8 @@ function Register() {
   const handleCredentialResponse = (response) => {
     try {
       if (response && response.credential) {
-        dispatch(googleAuth(response.credential));
+        // Include the selected role in the Google auth request
+        dispatch(googleAuth({ tokenId: response.credential, role: form.role }));
       } else {
         console.error('No credential received from Google');
         alert('Failed to authenticate with Google. Please try again.');
@@ -105,10 +107,17 @@ function Register() {
     }
   };
 
+  const googleLoginHandler = (event) => {
+    event.preventDefault();
+    // Initialize Google login when the button is clicked
+    handleGoogleRegister();
+  };
+  
   return (
     <section className="max-w-md mx-auto px-4 py-12">
       <div className="bg-white p-8 rounded-3xl shadow">
         <h1 className="text-2xl font-semibold mb-6">Join Tradethiopia</h1>
+        <p className="text-sm text-slate-600 mb-6">Create an account to buy products or sell on Ethiopia's leading B2B marketplace.</p>
         <form className="space-y-4" onSubmit={handleSubmit}>
           <label className="block text-sm font-medium text-slate-700">
             Full Name
@@ -140,6 +149,38 @@ function Register() {
               required
             />
           </label>
+          <div className="mt-4">
+            <p className="text-sm font-medium text-slate-700 mb-3">Account Type</p>
+            <div className="flex space-x-6">
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="role"
+                  value="Buyer"
+                  checked={form.role === 'Buyer'}
+                  onChange={(event) => setForm({ ...form, role: event.target.value })}
+                  className="h-4 w-4 text-emerald-600 focus:ring-emerald-500"
+                />
+                <span className="text-sm font-medium text-slate-700">Buyer</span>
+              </label>
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="role"
+                  value="Seller"
+                  checked={form.role === 'Seller'}
+                  onChange={(event) => setForm({ ...form, role: event.target.value })}
+                  className="h-4 w-4 text-emerald-600 focus:ring-emerald-500"
+                />
+                <span className="text-sm font-medium text-slate-700">Seller</span>
+              </label>
+            </div>
+          </div>
+          {form.role === 'Seller' && (
+            <div className="mt-4 text-xs text-amber-600 bg-amber-50 p-3 rounded-lg border border-amber-100">
+              <p>As a seller, you'll need to complete onboarding to verify your business before listing products.</p>
+            </div>
+          )}
           <button
             type="submit"
             className="w-full rounded-full bg-emerald-600 text-white py-2 text-sm font-semibold hover:bg-emerald-500 transition"

@@ -92,6 +92,7 @@ function Login() {
   const handleCredentialResponse = (response) => {
     try {
       if (response && response.credential) {
+        // For login, we don't need to pass a role
         dispatch(googleAuth(response.credential));
       } else {
         console.error('No credential received from Google');
@@ -103,6 +104,12 @@ function Login() {
     }
   };
 
+  const googleLoginHandler = (event) => {
+    event.preventDefault();
+    // Initialize Google login when the button is clicked
+    handleGoogleLogin();
+  };
+  
   return (
     <section className="max-w-md mx-auto px-4 py-12">
       <div className="bg-white p-8 rounded-3xl shadow">

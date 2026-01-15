@@ -34,6 +34,8 @@ const AdminProducts = () => {
   const [categories, setCategories] = useState([]);
   const [formState, setFormState] = useState(initialFormState);
   const [images, setImages] = useState([]);
+  const [imageError, setImageError] = useState('');
+  const [submitError, setSubmitError] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -81,13 +83,25 @@ const AdminProducts = () => {
   };
 
   const handleImageChange = (event) => {
-    setImages(Array.from(event.target.files || []));
+    const files = Array.from(event.target.files || []);
+    const maxBytes = 10 * 1024 * 1024;
+    const validFiles = files.filter((file) => file.size <= maxBytes);
+    const rejected = files.filter((file) => file.size > maxBytes);
+    if (rejected.length) {
+      const maxMb = (maxBytes / (1024 * 1024)).toFixed(0);
+      setImageError(`Some images exceed ${maxMb} MB and were not added.`);
+    } else {
+      setImageError('');
+    }
+    setImages(validFiles);
   };
 
   const resetForm = () => {
     setFormState(initialFormState);
     setImages([]);
     setEditingProduct(null);
+    setImageError('');
+    setSubmitError('');
   };
 
   const isObjectId = (value) => /^[a-f\d]{24}$/i.test(value);
@@ -164,6 +178,7 @@ const AdminProducts = () => {
     event.preventDefault();
     try {
       setSubmitting(true);
+      setSubmitError('');
       let categoryId = formState.category;
       if (categoryId && !/^[a-f\d]{24}$/i.test(categoryId)) {
         const match = categories.find(
@@ -204,6 +219,11 @@ const AdminProducts = () => {
       await loadData();
     } catch (error) {
       console.error('Error creating product', error);
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Unable to create product. Please try again.';
+      setSubmitError(message);
     } finally {
       setSubmitting(false);
     }
@@ -304,6 +324,11 @@ const AdminProducts = () => {
         </div>
         {showCreateForm && (
           <form className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4" onSubmit={handleCreateProduct}>
+            {submitError && (
+              <div className="lg:col-span-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                {submitError}
+              </div>
+            )}
             <div className="space-y-4">
               <div>
                 <label className="text-xs font-semibold text-slate-500 uppercase tracking-[0.2em]">Product name</label>
@@ -416,6 +441,9 @@ const AdminProducts = () => {
                     onChange={handleImageChange}
                     className="mt-2 w-full text-xs text-slate-500"
                   />
+                  {imageError && (
+                    <p className="mt-2 text-xs text-rose-600">{imageError}</p>
+                  )}
                 </div>
               </div>
               <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
