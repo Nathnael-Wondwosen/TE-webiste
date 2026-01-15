@@ -325,6 +325,52 @@ const updateUserRole = async (req, res) => {
       
       if (role && validTransitions[user.role]?.includes(role)) {
         user.role = role;
+        
+        // If admin is promoting a ProspectiveSeller to Seller, ensure they have a SellerProfile
+        // and update their existing products to be approved
+        if (req.user.role === 'Admin' && user.role === 'ProspectiveSeller' && role === 'Seller') {
+          const SellerProfile = require('../models/SellerProfile');
+          const Product = require('../models/Product');
+          const existingProfile = await SellerProfile.findOne({ seller: userId });
+          
+          if (!existingProfile) {
+            // Create a basic seller profile if one doesn't exist
+            const baseName = user.name || 'Seller Shop';
+            const createSlug = (value) =>
+              value
+                ? value
+                    .toLowerCase()
+                    .trim()
+                    .replace(/[^a-z0-9\s-]/g, '')
+                    .replace(/\s+/g, '-')
+                : undefined;
+            
+            await SellerProfile.create({
+              seller: userId,
+              shopName: baseName,
+              slug: createSlug(baseName),
+              contactEmail: user.email,
+              status: 'active', // Set to active since admin is promoting
+            });
+          } else {
+            // If profile exists but status is not active, set it to active
+            if (existingProfile.status !== 'active') {
+              existingProfile.status = 'active';
+              await existingProfile.save();
+            }
+          }
+          
+          // Update all existing products for this user to be approved
+          await Product.updateMany(
+            { seller: userId, status: 'pending' },
+            { 
+              status: 'approved',
+              approved: true,
+              verified: true
+            }
+          );
+        }
+        
         await user.save();
         
         res.json({

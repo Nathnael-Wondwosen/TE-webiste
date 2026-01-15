@@ -164,9 +164,102 @@ const authSlice = createSlice({
         state.token = null;
         state.user = null;
       });
+  }
+});
+
+// Thunk to fetch current user data
+export const getMe = createAsyncThunk(
+  'auth/getMe',
+  async (_, { rejectWithValue }) => {
+    try {
+      const { data } = await api.get('/auth/me');
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch user data');
+    }
+  }
+);
+
+// Update the extraReducers to handle getMe
+const authSliceWithExtraReducers = createSlice({
+  name: 'auth',
+  initialState,
+  reducers: {
+    logout(state) {
+      state.user = null;
+      state.token = null;
+      state.refreshToken = null;
+      state.status = 'idle';
+      // Clear tokens from localStorage
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+    },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(loginUser.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(loginUser.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.user = action.payload.user;
+        state.token = action.payload.token;
+        state.refreshToken = action.payload.refreshToken;
+        state.error = null;
+      })
+      .addCase(loginUser.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+      })
+      .addCase(registerUser.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(registerUser.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.user = action.payload.user;
+        state.token = action.payload.token;
+        state.refreshToken = action.payload.refreshToken;
+        state.error = null;
+      })
+      .addCase(registerUser.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+      })
+      .addCase(googleAuth.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(googleAuth.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.user = action.payload.user;
+        state.token = action.payload.token;
+        state.refreshToken = action.payload.refreshToken;
+        state.error = null;
+      })
+      .addCase(googleAuth.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+      })
+      .addCase(getMe.fulfilled, (state, action) => {
+        state.user = action.payload;
+        state.error = null;
+      })
+      .addCase(getMe.rejected, (state, action) => {
+        state.error = action.payload;
+      })
+      .addCase(refreshToken.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.token = action.payload.token;
+        state.error = null;
+      })
+      .addCase(refreshToken.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
+        state.token = null;
+        state.user = null;
+      });
   },
 });
 
-export const { logout } = authSlice.actions;
+export const { logout } = authSliceWithExtraReducers.actions;
 
-export default authSlice.reducer;
+export default authSliceWithExtraReducers.reducer;

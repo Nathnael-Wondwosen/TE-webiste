@@ -1,7 +1,12 @@
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
 const SellerProfile = require('../models/SellerProfile');
+const Order = require('../models/Order');
+const Review = require('../models/Review');
+const Advertisement = require('../models/Advertisement');
+const ServiceProvider = require('../models/ServiceProvider');
 
 const getUsers = async (req, res) => {
   try {
@@ -201,6 +206,112 @@ const updateSellerStatus = async (req, res) => {
   }
 };
 
+const fixAllProductsForSeller = async (req, res) => {
+  try {
+    const { sellerId } = req.params;
+    
+    // Update all products for this seller to be approved and verified
+    const result = await Product.updateMany(
+      { seller: sellerId },
+      { 
+        status: 'approved', 
+        approved: true, 
+        verified: true 
+      }
+    );
+    
+    console.log(`Fixed ${result.modifiedCount} products for seller ${sellerId}`);
+    
+    res.json({ 
+      message: `Successfully updated ${result.modifiedCount} products`,
+      updatedCount: result.modifiedCount
+    });
+  } catch (error) {
+    console.error('Fix all products for seller error', error);
+    res.status(500).json({ message: 'Unable to fix products for seller' });
+  }
+};
+
+const deleteUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    console.log('Attempting to delete user:', userId);
+    
+    // Find the user to check their role
+    const user = await User.findById(userId);
+    if (!user) {
+      console.log('User not found:', userId);
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Prevent admins from deleting themselves
+    if (user.role === 'Admin' && req.user._id.toString() === userId) {
+      console.log('Admin attempting to delete own account:', userId);
+      return res.status(400).json({ message: 'Cannot delete your own admin account' });
+    }
+    
+    console.log('Starting to delete user and related data');
+    
+    // Attempt to use transactions if supported, otherwise use sequential deletes
+    try {
+      const session = await mongoose.startSession();
+      await session.withTransaction(async () => {
+        console.log('Deleting user products...');
+        await Product.deleteMany({ seller: userId }, { session });
+        
+        console.log('Deleting seller profile...');
+        await SellerProfile.deleteOne({ seller: userId }, { session });
+        
+        console.log('Deleting user orders...');
+        await Order.deleteMany({ buyer: userId }, { session });
+        
+        console.log('Deleting user reviews...');
+        await Review.deleteMany({ user: userId }, { session });
+        
+        console.log('Deleting user advertisements...');
+        await Advertisement.deleteMany({ owner: userId }, { session });
+        
+        console.log('Deleting service provider records...');
+        await ServiceProvider.deleteMany({ user: userId }, { session });
+        
+        console.log('Deleting user...');
+        await User.deleteOne({ _id: userId }, { session });
+      });
+      await session.endSession();
+    } catch (transactionError) {
+      console.warn('Transaction failed, attempting sequential deletes:', transactionError);
+      
+      // Fallback to sequential deletes without transactions
+      console.log('Deleting user products...');
+      await Product.deleteMany({ seller: userId });
+      
+      console.log('Deleting seller profile...');
+      await SellerProfile.deleteOne({ seller: userId });
+      
+      console.log('Deleting user orders...');
+      await Order.deleteMany({ buyer: userId });
+      
+      console.log('Deleting user reviews...');
+      await Review.deleteMany({ user: userId });
+      
+      console.log('Deleting user advertisements...');
+      await Advertisement.deleteMany({ owner: userId });
+      
+      console.log('Deleting service provider records...');
+      await ServiceProvider.deleteMany({ user: userId });
+      
+      console.log('Deleting user...');
+      await User.deleteOne({ _id: userId });
+    }
+    
+    console.log('Successfully deleted user:', userId);
+    res.json({ message: 'User and all related data deleted successfully' });
+  } catch (error) {
+    console.error('Delete user error', error);
+    res.status(500).json({ message: 'Unable to delete user', error: error.message });
+  }
+};
+
 module.exports = {
   getUsers,
   updateUserRole,
@@ -211,4 +322,6 @@ module.exports = {
   getAnalytics,
   getSellers,
   updateSellerStatus,
+  fixAllProductsForSeller,
+  deleteUser,
 };

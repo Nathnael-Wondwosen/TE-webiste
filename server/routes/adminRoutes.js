@@ -1,5 +1,5 @@
 const express = require('express');
-const { getUsers, updateUserRole, getCategories, createCategory, approveProduct, updateProductStatus, getAnalytics, getSellers, updateSellerStatus } = require('../controllers/adminController');
+const { getUsers, updateUserRole, getCategories, createCategory, approveProduct, updateProductStatus, getAnalytics, getSellers, updateSellerStatus, fixAllProductsForSeller, deleteUser } = require('../controllers/adminController');
 const { createAdminBySuper, getProspectiveSellers } = require('../controllers/authController');
 const authMiddleware = require('../middleware/authMiddleware');
 const allowRoles = require('../middleware/roleMiddleware');
@@ -16,7 +16,9 @@ router.get('/sellers', getSellers);
 router.put('/sellers/:id/status', updateSellerStatus);
 router.put('/products/:id/approve', approveProduct);
 router.put('/products/:id/status', updateProductStatus);
+router.put('/products/seller/:sellerId/fix-status', fixAllProductsForSeller);
 router.get('/analytics', getAnalytics);
 router.post('/create-admin', createAdminBySuper);
+router.delete('/users/:userId', deleteUser);
 
 module.exports = router;

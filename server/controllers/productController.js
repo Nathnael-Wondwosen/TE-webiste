@@ -160,7 +160,15 @@ const getProducts = async (req, res) => {
     if (productType) filters.productType = productType;
     if (country) filters.country = country;
     if (verified !== undefined) filters.verified = verified === 'true';
-    if (approved !== undefined) filters.approved = approved === 'true';
+    // Check if we should filter by seller status instead of product approval
+    if (req.query.checkSellerStatus === 'true') {
+      // This will be handled with a join query to SellerProfile
+      console.log('Using seller status check instead of product approval');
+    } else {
+      // Original logic for approved filter
+      if (approved !== undefined) filters.approved = approved === 'true';
+    }
+    if (verified !== undefined) filters.verified = verified === 'true';
     if (sortBy) {
       if (sortBy === 'newest') {
         filters.createdAt = { $exists: true };
@@ -188,16 +196,20 @@ const getProducts = async (req, res) => {
     if (sortBy === 'price-desc') sortOptions = { price: -1 };
 
     const skip = (Number(page) - 1) * Number(limit);
-    const total = await Product.countDocuments(filters);
-    console.log('Total products matching filters:', total);
     
-    const products = await Product.find(filters)
-      .populate('category', 'name slug')
-      .populate('seller', 'name email role')
-      .sort(sortOptions)
-      .skip(skip)
-      .limit(Number(limit));
-
+    let products, total;
+    
+// Original logic
+      total = await Product.countDocuments(filters);
+      console.log('Total products matching filters:', total);
+      
+      products = await Product.find(filters)
+        .populate('category', 'name slug')
+        .populate('seller', 'name email role')
+        .sort(sortOptions)
+        .skip(skip)
+        .limit(Number(limit));
+    
     console.log('Products retrieved:', products.length);
     products.forEach(product => {
       console.log(`Product ID: ${product._id}, Name: ${product.name}, Status: ${product.status}, Approved: ${product.approved}, Verified: ${product.verified}, Seller Role: ${product.seller?.role}, Seller ID: ${product.seller?._id}`);

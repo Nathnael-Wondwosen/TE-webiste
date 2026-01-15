@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { logout } from '../redux/authSlice';
+import { logout, getMe } from '../redux/authSlice';
 import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
 import MobileMenu from './MobileMenu';
 
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [lastChecked, setLastChecked] = useState(0);
   
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -90,7 +92,19 @@ const Navbar = () => {
                 // Show profile dropdown when user is logged in
                 <div className="relative">
                   <button
-                    onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                    onClick={async () => {
+                      const now = Date.now();
+                      // Refresh user data if it's been more than 30 seconds since last check
+                      if (now - lastChecked > 30000) {
+                        try {
+                          await dispatch(getMe());
+                          setLastChecked(now);
+                        } catch (error) {
+                          console.error('Error refreshing user data:', error);
+                        }
+                      }
+                      setProfileDropdownOpen(!profileDropdownOpen);
+                    }}
                     className="flex items-center gap-2 bg-[#f7b733] hover:bg-[#f5a623] text-black font-semibold px-4 py-2 rounded-full transition-colors"
                     aria-expanded={profileDropdownOpen}
                     aria-haspopup="true"
@@ -118,15 +132,41 @@ const Navbar = () => {
                       </div>
                       <div className="py-1">
                         {user.role === 'Seller' && (
-                          <button
-                            onClick={() => {
-                              navigate('/seller');
-                              setProfileDropdownOpen(false);
-                            }}
-                            className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
-                          >
-                            Seller Hub
-                          </button>
+                          <>
+                            <button
+                              onClick={() => {
+                                navigate('/seller');
+                                setProfileDropdownOpen(false);
+                              }}
+                              className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+                            >
+                              Seller Hub
+                            </button>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  // Fetch seller profile to get the shop slug
+                                  const response = await api.get('/seller/profile');
+                                  const sellerProfile = response.data;
+                                  if (sellerProfile.slug) {
+                                    navigate(`/shop/${sellerProfile.slug}`);
+                                  } else {
+                                    // Fallback if no slug exists
+                                    const fallbackSlug = user.name?.toLowerCase().replace(/\s+/g, '-') || user._id;
+                                    navigate(`/shop/${fallbackSlug}`);
+                                  }
+                                } catch (error) {
+                                  // Fallback if profile fetch fails
+                                  const fallbackSlug = user.name?.toLowerCase().replace(/\s+/g, '-') || user._id;
+                                  navigate(`/shop/${fallbackSlug}`);
+                                }
+                                setProfileDropdownOpen(false);
+                              }}
+                              className="block w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+                            >
+                              Visit My Shop
+                            </button>
+                          </>
                         )}
                         <button
                           onClick={() => {

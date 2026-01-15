@@ -74,8 +74,8 @@ const updateSellerProfile = async (req, res) => {
         user.role = 'Seller';
         await user.save();
         
-        // Update the profile status to approved
-        profile.status = 'approved';
+        // Promote the seller profile to active once onboarding is done
+        profile.status = 'active';
         await profile.save();
       }
     }

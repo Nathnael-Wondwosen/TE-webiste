@@ -17,7 +17,7 @@ import UserManagement from './pages/admin/UserManagement';
 import AdminProducts from './pages/admin/AdminProducts';
 import ProductApproval from './pages/admin/ProductApproval';
 import SellerManagement from './pages/admin/SellerManagement';
-import SellerApprovals from './pages/admin/SellerApprovals';
+
 import Cart from './pages/Cart';
 import About from './pages/About';
 import Eshop from './pages/Eshop';
@@ -116,7 +116,7 @@ function App() {
             <Route path="products" element={<AdminProducts />} />
             <Route path="products/approvals" element={<ProductApproval />} />
             <Route path="sellers" element={<SellerManagement />} />
-            <Route path="sellers/approvals" element={<SellerApprovals />} />
+            
             <Route path="categories" element={<div className="p-6">Categories Management</div>} />
             <Route path="orders" element={<div className="p-6">Orders Management</div>} />
             <Route path="analytics" element={<div className="p-6">Analytics Dashboard</div>} />

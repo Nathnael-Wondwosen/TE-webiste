@@ -10,6 +10,11 @@ const ProductApproval = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  
+  // Extract unique categories from products
+  const allCategories = Array.from(
+    new Set(products.map(product => product.category?.name).filter(Boolean))
+  );
 
   useEffect(() => {
     fetchData();
@@ -33,25 +38,60 @@ const ProductApproval = () => {
       await api.put(`/admin/products/${productId}/approve`);
       // Update local state
       setProducts(products.map(product => 
-        product._id === productId ? { ...product, approved: true, verified: true } : product
+        product._id === productId ? { ...product, approved: true, verified: true, status: 'approved' } : product
       ));
     } catch (error) {
       console.error('Error approving product:', error);
     }
   };
-
-  const handleRejectProduct = async (productId) => {
+  
+  const handleVerifyProduct = async (productId) => {
     try {
-      // In a real app, you might have a different endpoint for rejection
-      // For now, we'll just remove it from the list or mark as rejected
-      setProducts(products.filter(product => product._id !== productId));
+      // Call the approve endpoint which sets both approved and verified
+      await api.put(`/admin/products/${productId}/approve`);
+      // Update local state
+      setProducts(products.map(product => 
+        product._id === productId ? { ...product, verified: true, approved: true, status: 'approved' } : product
+      ));
     } catch (error) {
-      console.error('Error rejecting product:', error);
+      console.error('Error verifying product:', error);
     }
   };
 
-  const pendingProducts = products.filter(p => !p.approved);
-  const filteredProducts = pendingProducts.filter(product => {
+  const handleRejectProduct = async (productId) => {
+    try {
+      // If product is approved, unapprove it
+      // If product is not approved, remove it
+      const productToProcess = products.find(p => p._id === productId);
+      if (productToProcess && productToProcess.approved) {
+        // Call API to unapprove the product
+        await api.put(`/admin/products/${productId}/status`, { status: 'pending' });
+        // Update local state
+        setProducts(products.map(product => 
+          product._id === productId ? { ...product, approved: false, verified: false, status: 'pending' } : product
+        ));
+      } else {
+        // Remove the product
+        setProducts(products.filter(product => product._id !== productId));
+      }
+    } catch (error) {
+      console.error('Error processing product:', error);
+    }
+  };
+
+  const handleFixAllProductsForSeller = async (sellerId) => {
+    try {
+      // Call API to fix all products for this seller
+      await api.put(`/admin/products/seller/${sellerId}/fix-status`);
+      // Refresh the product list
+      await fetchData();
+    } catch (error) {
+      console.error('Error fixing all products for seller:', error);
+    }
+  };
+
+  // Show all products regardless of approval status, not just pending ones
+  const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesStatus = selectedStatus === 'all' || 
@@ -60,6 +100,9 @@ const ProductApproval = () => {
     const matchesCategory = selectedCategory === 'all' || product.category?.name === selectedCategory;
     return matchesSearch && matchesStatus && matchesCategory;
   });
+  
+  // Count pending products for the stats
+  const pendingProducts = products.filter(p => !p.approved);
 
   if (loading) {
     return (
@@ -74,8 +117,8 @@ const ProductApproval = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Product Approval</h1>
-          <p className="text-gray-600 mt-1">Review and approve pending products</p>
+          <h1 className="text-2xl font-bold text-gray-900">Product Management</h1>
+          <p className="text-gray-600 mt-1">Review and manage all products</p>
         </div>
         <div className="flex gap-3">
           <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
@@ -154,10 +197,9 @@ const ProductApproval = () => {
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
           >
             <option value="all">All Categories</option>
-            <option value="Electronics">Electronics</option>
-            <option value="Clothing">Clothing</option>
-            <option value="Home & Garden">Home & Garden</option>
-            <option value="Automotive">Automotive</option>
+            {allCategories.map(category => (
+              <option key={category} value={category}>{category}</option>
+            ))}
           </select>
         </div>
       </div>
@@ -172,8 +214,11 @@ const ProductApproval = () => {
                   <h3 className="text-lg font-semibold text-gray-900">{product.name}</h3>
                   <p className="text-sm text-gray-500 mt-1">by {product.seller?.name || 'Unknown Seller'}</p>
                 </div>
-                <span className="px-2 py-1 bg-amber-100 text-amber-800 text-xs font-medium rounded-full">
-                  Pending
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${product.approved ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
+                  {product.approved ? 'Approved' : 'Pending'}
+                </span>
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ml-1 ${product.verified ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'}`}>
+                  {product.verified ? 'Verified' : 'Not Verified'}
                 </span>
               </div>
               
@@ -194,17 +239,34 @@ const ProductApproval = () => {
               </div>
               
               <div className="flex gap-2">
-                <button
-                  onClick={() => handleApproveProduct(product._id)}
-                  className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium"
-                >
-                  Approve
-                </button>
+                {!product.approved && (
+                  <button
+                    onClick={() => handleApproveProduct(product._id)}
+                    className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium"
+                  >
+                    Approve
+                  </button>
+                )}
+                {product.approved && !product.verified && (
+                  <button
+                    onClick={() => handleVerifyProduct(product._id)}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                  >
+                    Verify
+                  </button>
+                )}
                 <button
                   onClick={() => handleRejectProduct(product._id)}
                   className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
                 >
-                  Reject
+                  {product.approved ? 'Unapprove' : 'Reject'}
+                </button>
+                <button
+                  onClick={() => handleFixAllProductsForSeller(product.seller._id)}
+                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                  title="Fix all products for this seller"
+                >
+                  Fix All
                 </button>
               </div>
             </div>
@@ -217,8 +279,8 @@ const ProductApproval = () => {
           <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
           </svg>
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No pending products</h3>
-          <p className="mt-1 text-sm text-gray-500">All products have been reviewed.</p>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">No products found</h3>
+          <p className="mt-1 text-sm text-gray-500">No products match your current filters.</p>
         </div>
       )}
     </div>

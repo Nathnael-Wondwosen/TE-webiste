@@ -39,6 +39,19 @@ const UserManagement = () => {
       console.error('Error updating user role:', error);
     }
   };
+  
+  const handleDeleteUser = async (userId, userName) => {
+    if (window.confirm(`Are you sure you want to delete user "${userName}"? This action will permanently remove the user and all their related data including products, shop, orders, and reviews.`)) {
+      try {
+        await api.delete(`/admin/users/${userId}`);
+        // Remove user from local state
+        setUsers(users.filter(user => user._id !== userId));
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        alert('Failed to delete user. Please try again.');
+      }
+    }
+  };
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -169,6 +182,12 @@ const UserManagement = () => {
                         className="text-gray-600 hover:text-gray-900"
                       >
                         Save
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUser(user._id, user.name)}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        Delete
                       </button>
                     </div>
                   </td>
