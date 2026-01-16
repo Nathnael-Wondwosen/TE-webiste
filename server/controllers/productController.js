@@ -391,11 +391,14 @@ const deleteProduct = async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    if (
-      req.user.role !== 'Admin' &&
-      product.seller.toString() !== req.user._id.toString()
-    ) {
-      return res.status(403).json({ message: 'Unauthorized' });
+    // Authorization: Allow Admins to delete any product, or allow product owner to delete their own product
+    // Also ensure the user is a Seller, ProspectiveSeller, or Admin
+    const isOwner = product.seller.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'Admin';
+    const isAuthorizedSeller = ['Seller', 'ProspectiveSeller'].includes(req.user.role);
+    
+    if (!(isAdmin || (isOwner && isAuthorizedSeller))) {
+      return res.status(403).json({ message: 'Unauthorized: You can only delete your own products' });
     }
 
     if (product.images && product.images.length) {

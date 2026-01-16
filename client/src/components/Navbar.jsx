@@ -131,7 +131,7 @@ const Navbar = () => {
                         <p className="text-xs text-slate-500 truncate">{user.email}</p>
                       </div>
                       <div className="py-1">
-                        {user.role === 'Seller' && (
+                        {(user.role === 'Seller' || user.role === 'ProspectiveSeller') && (
                           <>
                             <button
                               onClick={() => {

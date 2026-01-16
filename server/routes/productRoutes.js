@@ -17,7 +17,7 @@ const router = express.Router();
 router.post(
   '/',
   authMiddleware,
-  allowRoles('Seller', 'Admin'),
+  allowRoles('Seller', 'Admin', 'ProspectiveSeller'),
   upload.array('images', 6),
   createProduct
 );

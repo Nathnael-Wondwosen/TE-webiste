@@ -66,18 +66,22 @@ const updateSellerProfile = async (req, res) => {
       { new: true, upsert: true }
     );
 
-    // If onboarding is completed and user is still a ProspectiveSeller, promote them to Seller
-    if (payload.onboardingCompleted && req.user.role === 'ProspectiveSeller') {
+    // Handle onboarding completion for both ProspectiveSeller and existing Sellers
+    if (payload.onboardingCompleted) {
       const User = require('../models/User');
       const user = await User.findById(req.user._id);
+      
+      // If user is ProspectiveSeller, promote them to Seller
       if (user && user.role === 'ProspectiveSeller') {
         user.role = 'Seller';
         await user.save();
-        
-        // Promote the seller profile to active once onboarding is done
-        profile.status = 'active';
-        await profile.save();
       }
+      
+      // Always set the seller profile to active when onboarding is completed
+      // This ensures shops are accessible regardless of user role
+      profile.status = 'active';
+      profile.onboardingCompleted = true;
+      await profile.save();
     }
 
     res.json(profile);

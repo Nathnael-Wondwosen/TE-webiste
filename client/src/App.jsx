@@ -76,7 +76,7 @@ function App() {
       return <Navigate to="/login" replace />;
     }
 
-    if (user.role !== 'Seller') {
+    if (user.role !== 'Seller' && user.role !== 'ProspectiveSeller') {
       return <Navigate to="/" replace />;
     }
 

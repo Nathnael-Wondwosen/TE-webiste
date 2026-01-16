@@ -54,6 +54,8 @@ export const googleAuth = createAsyncThunk(
       // Handle both string tokenId (legacy) and object with tokenId and role
       const requestData = typeof payload === 'string' ? { tokenId: payload } : payload;
       
+      console.log('Sending Google auth request with data:', requestData);
+      
       const { data } = await api.post('/auth/google', requestData);
       // Store tokens in localStorage
       if (data.token) {
@@ -95,78 +97,6 @@ export const refreshToken = createAsyncThunk(
   }
 );
 
-const authSlice = createSlice({
-  name: 'auth',
-  initialState,
-  reducers: {
-    logout(state) {
-      state.user = null;
-      state.token = null;
-      state.refreshToken = null;
-      state.status = 'idle';
-      // Clear tokens from localStorage
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-    },
-  },
-  extraReducers: (builder) => {
-    builder
-      .addCase(loginUser.pending, (state) => {
-        state.status = 'loading';
-      })
-      .addCase(loginUser.fulfilled, (state, action) => {
-        state.status = 'succeeded';
-        state.user = action.payload.user;
-        state.token = action.payload.token;
-        state.refreshToken = action.payload.refreshToken;
-        state.error = null;
-      })
-      .addCase(loginUser.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload;
-      })
-      .addCase(registerUser.pending, (state) => {
-        state.status = 'loading';
-      })
-      .addCase(registerUser.fulfilled, (state, action) => {
-        state.status = 'succeeded';
-        state.user = action.payload.user;
-        state.token = action.payload.token;
-        state.refreshToken = action.payload.refreshToken;
-        state.error = null;
-      })
-      .addCase(registerUser.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload;
-      })
-      .addCase(googleAuth.pending, (state) => {
-        state.status = 'loading';
-      })
-      .addCase(googleAuth.fulfilled, (state, action) => {
-        state.status = 'succeeded';
-        state.user = action.payload.user;
-        state.token = action.payload.token;
-        state.refreshToken = action.payload.refreshToken;
-        state.error = null;
-      })
-      .addCase(googleAuth.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload;
-      })
-      .addCase(refreshToken.fulfilled, (state, action) => {
-        state.status = 'succeeded';
-        state.token = action.payload.token;
-        state.error = null;
-      })
-      .addCase(refreshToken.rejected, (state, action) => {
-        state.status = 'failed';
-        state.error = action.payload;
-        state.token = null;
-        state.user = null;
-      });
-  }
-});
-
 // Thunk to fetch current user data
 export const getMe = createAsyncThunk(
   'auth/getMe',
@@ -180,8 +110,7 @@ export const getMe = createAsyncThunk(
   }
 );
 
-// Update the extraReducers to handle getMe
-const authSliceWithExtraReducers = createSlice({
+const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
@@ -245,6 +174,15 @@ const authSliceWithExtraReducers = createSlice({
       })
       .addCase(getMe.rejected, (state, action) => {
         state.error = action.payload;
+        // If the user was deleted, the getMe request will fail with 401
+        // In this case, we should log the user out
+        if (action.payload?.includes('401') || action.payload?.includes('Authentication') || action.payload?.includes('deactivated')) {
+          state.user = null;
+          state.token = null;
+          state.refreshToken = null;
+          localStorage.removeItem('token');
+          localStorage.removeItem('refreshToken');
+        }
       })
       .addCase(refreshToken.fulfilled, (state, action) => {
         state.status = 'succeeded';
@@ -260,6 +198,6 @@ const authSliceWithExtraReducers = createSlice({
   },
 });
 
-export const { logout } = authSliceWithExtraReducers.actions;
+export const { logout } = authSlice.actions;
 
-export default authSliceWithExtraReducers.reducer;
+export default authSlice.reducer;

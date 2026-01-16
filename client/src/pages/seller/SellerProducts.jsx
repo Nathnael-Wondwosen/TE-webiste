@@ -5,6 +5,7 @@ const SellerProducts = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deletingProductId, setDeletingProductId] = useState(null);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -23,6 +24,24 @@ const SellerProducts = () => {
 
     fetchProducts();
   }, []);
+
+  const handleDeleteProduct = async (productId, productName) => {
+    if (!window.confirm(`Are you sure you want to delete the product "${productName}"? This action cannot be undone.`)) {
+      return;
+    }
+    
+    try {
+      setDeletingProductId(productId);
+      await api.delete(`/products/${productId}`);
+      setProducts(products.filter(product => product._id !== productId));
+      setError('');
+    } catch (err) {
+      console.error('Delete product error', err);
+      setError('Unable to delete product. Please try again.');
+    } finally {
+      setDeletingProductId(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -73,12 +92,21 @@ const SellerProducts = () => {
               }`}>
                 {product.status}
               </span>
-              <a
-                href={`/seller/products/${product._id}/edit`}
-                className="text-xs font-semibold text-emerald-700 hover:text-emerald-800"
-              >
-                Edit
-              </a>
+              <div className="flex gap-2">
+                <a
+                  href={`/seller/products/${product._id}/edit`}
+                  className="text-xs font-semibold text-emerald-700 hover:text-emerald-800"
+                >
+                  Edit
+                </a>
+                <button
+                  onClick={() => handleDeleteProduct(product._id, product.name)}
+                  disabled={deletingProductId === product._id}
+                  className="text-xs font-semibold text-rose-600 hover:text-rose-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {deletingProductId === product._id ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
             </div>
           ))}
           {!loading && !products.length && !error && (

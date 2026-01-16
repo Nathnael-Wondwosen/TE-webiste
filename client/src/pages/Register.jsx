@@ -95,8 +95,12 @@ function Register() {
   const handleCredentialResponse = (response) => {
     try {
       if (response && response.credential) {
+        // Capture the current role selection at the time of authentication
+        const currentRole = document.querySelector('input[name="role"]:checked')?.value || 'Buyer';
+        console.log('Google auth - Selected role:', currentRole);
+        
         // Include the selected role in the Google auth request
-        dispatch(googleAuth({ tokenId: response.credential, role: form.role }));
+        dispatch(googleAuth({ tokenId: response.credential, role: currentRole }));
       } else {
         console.error('No credential received from Google');
         alert('Failed to authenticate with Google. Please try again.');

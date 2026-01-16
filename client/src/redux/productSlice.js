@@ -5,7 +5,8 @@ export const fetchProducts = createAsyncThunk(
   'products/fetchProducts',
   async (_, { rejectWithValue }) => {
     try {
-      const { data } = await api.get('/products');
+      // Fetch only approved and verified products for marketplace consistency
+      const { data } = await api.get('/products?approved=true&verified=true');
       return data.data || [];
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Unable to load products');

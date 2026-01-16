@@ -228,13 +228,18 @@ const googleAuth = async (req, res) => {
       // For OAuth registration, check if role was specified in request
       // Otherwise default to Buyer role
       const requestedRole = req.body.role;
+      console.log('Google OAuth - Requested role:', requestedRole);
       let assignedRole = 'Buyer'; // Default role
       
       if (requestedRole === 'Seller') {
         // For sellers, assign 'ProspectiveSeller' initially
         assignedRole = 'ProspectiveSeller';
+        console.log('Assigning ProspectiveSeller role for new seller');
       } else if (['Admin', 'Buyer'].includes(requestedRole)) {
         assignedRole = requestedRole;
+        console.log('Assigning direct role:', assignedRole);
+      } else {
+        console.log('No valid role specified, defaulting to Buyer');
       }
       
       user = await User.create({

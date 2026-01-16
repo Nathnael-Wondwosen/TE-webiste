@@ -1,0 +1,57 @@
+```mermaid
+graph TD
+    A[Seller Creates Product] --> B{User Role Check}
+    B -->|Seller| C[Auto-Approve: status=approved<br/>approved=true<br/>verified=true]
+    B -->|Admin| D[Manual Approval Required]
+    
+    C --> E[Product Stored in Database]
+    D --> E
+    
+    E --> F[Immediate Visibility Check]
+    
+    F --> G[Eshop Platform]
+    F --> H[Marketplace Platform] 
+    F --> I[Seller Shop Platform]
+    
+    G --> J{Approved AND Verified?}
+    H --> K{Approved AND Verified?}
+    I --> L{Public or Preview Mode?}
+    
+    J -->|Yes| M[Product Visible in Eshop]
+    J -->|No| N[Product Hidden from Eshop]
+    
+    K -->|Yes| O[Product Visible in Marketplace]
+    K -->|No| P[Product Hidden from Marketplace]
+    
+    L -->|Public View| Q{Approved AND Verified?}
+    L -->|Preview Mode| R[Show All Seller Products]
+    
+    Q -->|Yes| S[Product Visible in Shop]
+    Q -->|No| T[Product Hidden from Shop]
+    
+    R --> U[Seller Sees All Products]
+    
+    M --> V[Visitor Can Browse]
+    O --> V
+    S --> V
+    
+    N --> W[Admin Review Needed]
+    P --> W
+    T --> W
+    
+    W --> X[Admin Can Approve/Reject]
+    X --> Y[Update Product Status]
+    Y --> F
+    
+    subgraph "Backend Services"
+        Z[Product Controller]
+        AA[Shop Controller]
+        AB[Admin Controller]
+    end
+    
+    E --> Z
+    G --> Z
+    H --> Z
+    I --> AA
+    X --> AB
+```

@@ -7,6 +7,7 @@ const Order = require('../models/Order');
 const Review = require('../models/Review');
 const Advertisement = require('../models/Advertisement');
 const ServiceProvider = require('../models/ServiceProvider');
+const UserSession = require('../models/UserSession');
 
 const getUsers = async (req, res) => {
   try {
@@ -232,6 +233,36 @@ const fixAllProductsForSeller = async (req, res) => {
   }
 };
 
+const activateAllSellerProfiles = async (req, res) => {
+  try {
+    console.log('Activating all seller profiles...');
+    
+    // Find all seller profiles that should be active
+    const result = await SellerProfile.updateMany(
+      { 
+        $or: [
+          { onboardingCompleted: true },
+          { 'seller.role': 'Seller' }
+        ],
+        status: { $ne: 'active' }
+      },
+      { 
+        status: 'active'
+      }
+    );
+    
+    console.log(`Activated ${result.modifiedCount} seller profiles`);
+    
+    res.json({ 
+      message: `Successfully activated ${result.modifiedCount} seller profiles`,
+      activatedCount: result.modifiedCount
+    });
+  } catch (error) {
+    console.error('Activate all seller profiles error', error);
+    res.status(500).json({ message: 'Unable to activate seller profiles' });
+  }
+};
+
 const deleteUser = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -256,6 +287,13 @@ const deleteUser = async (req, res) => {
     try {
       const session = await mongoose.startSession();
       await session.withTransaction(async () => {
+        // Invalidate user sessions before deleting
+        console.log('Invalidating user sessions...');
+        await UserSession.updateMany(
+          { userId: userId, isActive: true },
+          { isActive: false, invalidatedAt: new Date(), invalidatedReason: 'deleted' }
+        );
+        
         console.log('Deleting user products...');
         await Product.deleteMany({ seller: userId }, { session });
         
@@ -282,6 +320,13 @@ const deleteUser = async (req, res) => {
       console.warn('Transaction failed, attempting sequential deletes:', transactionError);
       
       // Fallback to sequential deletes without transactions
+      // Invalidate user sessions before deleting
+      console.log('Invalidating user sessions...');
+      await UserSession.updateMany(
+        { userId: userId, isActive: true },
+        { isActive: false, invalidatedAt: new Date(), invalidatedReason: 'deleted' }
+      );
+      
       console.log('Deleting user products...');
       await Product.deleteMany({ seller: userId });
       
@@ -312,6 +357,70 @@ const deleteUser = async (req, res) => {
   }
 };
 
+// Function to fix product visibility for all seller products
+const fixAllSellerProducts = async (req, res) => {
+  try {
+    console.log('🔍 Starting to fix all seller products...');
+    
+    // Find all seller and prospective seller users
+    const sellerUsers = await User.find({ 
+      role: { $in: ['Seller', 'ProspectiveSeller'] } 
+    });
+    
+    console.log(`👥 Found ${sellerUsers.length} seller users`);
+    
+    let totalFixed = 0;
+    
+    for (const user of sellerUsers) {
+      console.log(`🔄 Processing products for ${user.name} (${user.email}) - Role: ${user.role}`);
+      
+      // Find all products for this seller
+      const products = await Product.find({ 
+        seller: user._id 
+      });
+      
+      console.log(`   📦 Found ${products.length} products`);
+      
+      for (const product of products) {
+        let updated = false;
+        
+        // Check if product status is approved but approved/verified flags are false
+        if (product.status === 'approved') {
+          if (!product.approved) {
+            product.approved = true;
+            updated = true;
+            console.log(`   ✅ Set approved=true for product: ${product.name}`);
+          }
+          
+          if (!product.verified) {
+            product.verified = true;
+            updated = true;
+            console.log(`   ✅ Set verified=true for product: ${product.name}`);
+          }
+        }
+        
+        if (updated) {
+          await product.save();
+          totalFixed++;
+        }
+      }
+      
+      console.log(`   🟢 Completed processing for ${user.name}\n`);
+    }
+    
+    console.log(`\n🎉 Summary: Fixed ${totalFixed} product records`);
+    
+    res.json({ 
+      message: `Successfully fixed approval status for ${totalFixed} products`,
+      fixedCount: totalFixed
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fixing seller products:', error);
+    res.status(500).json({ message: 'Unable to fix seller products', error: error.message });
+  }
+};
+
 module.exports = {
   getUsers,
   updateUserRole,
@@ -323,5 +432,7 @@ module.exports = {
   getSellers,
   updateSellerStatus,
   fixAllProductsForSeller,
+  activateAllSellerProfiles,
   deleteUser,
+  fixAllSellerProducts,
 };
