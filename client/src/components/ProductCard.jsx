@@ -6,6 +6,10 @@ import api from '../services/api';
 let favoritesCache = null;
 let favoritesPromise = null;
 
+// Cart cache
+let cartCache = null;
+let cartPromise = null;
+
 const getFavoritesCache = async () => {
   if (favoritesCache) return favoritesCache;
   if (!favoritesPromise) {
@@ -27,15 +31,54 @@ const updateFavoritesCache = (productId, shouldAdd) => {
   }
 };
 
+const getCartCache = async () => {
+  if (cartCache) return cartCache;
+  if (!cartPromise) {
+    cartPromise = api.get('/orders/cart').then((response) => {
+      const cartItems = response.data.products || [];
+      cartCache = new Set(cartItems.map((item) => item.product?._id.toString()));
+      return cartCache;
+    }).catch(() => {
+      // If there's an error, return empty set
+      cartCache = new Set();
+      return cartCache;
+    });
+  }
+  return cartPromise;
+};
+
+const updateCartCache = (productId, shouldAdd) => {
+  if (!cartCache) return;
+  if (shouldAdd) {
+    cartCache.add(productId);
+  } else {
+    cartCache.delete(productId);
+  }
+};
+
+// Function to reset cart cache (call after cart operations)
+const resetCartCache = () => {
+  cartCache = null;
+  cartPromise = null;
+};
+
 function ProductCard({ product }) {
   const [isFavorite, setIsFavorite] = useState(false);
+  const [inCart, setInCart] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token || !product?._id) return;
-    getFavoritesCache()
-      .then((favorites) => setIsFavorite(favorites.has(product._id)))
-      .catch(() => {});
+    
+    // Load both favorites and cart status
+    Promise.all([
+      getFavoritesCache().then((favorites) => setIsFavorite(favorites.has(product._id))),
+      getCartCache().then((cartItems) => setInCart(cartItems.has(product._id)))
+    ]).catch(() => {
+      // Fallback if there's an error
+      getFavoritesCache().then((favorites) => setIsFavorite(favorites.has(product._id))).catch(() => {});
+      getCartCache().then((cartItems) => setInCart(cartItems.has(product._id))).catch(() => {});
+    });
   }, [product?._id]);
 
   const requireAuth = () => {
@@ -60,6 +103,8 @@ function ProductCard({ product }) {
         await api.delete(`/users/favorites/${product._id}`);
       }
       updateFavoritesCache(product._id, next);
+      // Reset cart cache to refresh it after any user interaction
+      resetCartCache();
     } catch (error) {
       setIsFavorite(!next);
       console.error('Favorite update failed', error);
@@ -70,8 +115,12 @@ function ProductCard({ product }) {
     event.preventDefault();
     event.stopPropagation();
     if (!requireAuth()) return;
+    
     try {
       await api.post('/orders/cart', { productId: product._id, quantity: 1 });
+      // Update cart cache and state
+      updateCartCache(product._id, true);
+      setInCart(true);
     } catch (error) {
       console.error('Add to cart failed', error);
     }
@@ -123,10 +172,14 @@ function ProductCard({ product }) {
         </button>
         <button
           onClick={handleAddToCart}
-          className="h-9 w-9 rounded-full border border-white bg-white/90 text-slate-700 flex items-center justify-center shadow-sm hover:text-emerald-600 transition"
-          aria-label="Add to cart"
+          className={`h-9 w-9 rounded-full border flex items-center justify-center shadow-sm transition ${
+            inCart
+              ? 'bg-emerald-500 border-emerald-500 text-white'
+              : 'bg-white/90 border-white text-slate-700 hover:text-emerald-600'
+          }`}
+          aria-label={inCart ? "In cart" : "Add to cart"}
         >
-          <ShoppingCart className="h-4 w-4" />
+          <ShoppingCart className={`h-4 w-4 ${inCart ? 'fill-white' : ''}`} />
         </button>
         <button
           onClick={handleShare}

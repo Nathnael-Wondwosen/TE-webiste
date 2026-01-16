@@ -9,7 +9,11 @@ const Cart = () => {
     try {
       setLoading(true);
       const { data } = await api.get('/orders/cart');
-      setCartItems(data.products || []);
+      // Handle both response formats:
+      // 1. When cart exists: data is the full order object { products: [...], total, ... }
+      // 2. When no cart: data is { products: [], total: 0 }
+      const cartProducts = Array.isArray(data.products) ? data.products : [];
+      setCartItems(cartProducts);
     } catch (error) {
       console.error('Error loading cart', error);
       setCartItems([]);
@@ -104,9 +108,26 @@ const Cart = () => {
             <div className="w-full max-w-md space-y-4">
               <div className="flex justify-between text-lg font-semibold">
                 <span>Total:</span>
-                <span>$0.00</span>
+                <span>${cartItems.reduce((total, item) => total + (item.price * item.quantity), 0).toFixed(2)}</span>
               </div>
-              <button className="w-full bg-[#0f3d2e] hover:bg-[#124b38] text-white py-3 rounded-xl font-semibold">
+              <button 
+                onClick={async () => {
+                  if (cartItems.length > 0) {
+                    try {
+                      await api.post('/orders/checkout', {});
+                      // Redirect to order confirmation or show success message
+                      alert('Checkout successful!');
+                      loadCart(); // Reload cart to see updated state
+                    } catch (error) {
+                      console.error('Checkout error', error);
+                      alert('Error during checkout. Please try again.');
+                    }
+                  } else {
+                    alert('Your cart is empty');
+                  }
+                }}
+                className="w-full bg-[#0f3d2e] hover:bg-[#124b38] text-white py-3 rounded-xl font-semibold"
+              >
                 Proceed to Checkout
               </button>
             </div>

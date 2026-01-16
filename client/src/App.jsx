@@ -33,6 +33,7 @@ import SellerSettings from './pages/seller/SellerSettings';
 import SellerOnboarding from './pages/seller/SellerOnboarding';
 import SellerProductCreate from './pages/seller/SellerProductCreate';
 import SellerProductEdit from './pages/seller/SellerProductEdit';
+import UserProfile from './pages/UserProfile';
 
 function App() {
   const { user, status } = useSelector((state) => state.auth);
@@ -101,6 +102,7 @@ function App() {
           <Route path="/about" element={<About />} />
           <Route path="/eshop" element={<Eshop />} />
           <Route path="/shop/:slug" element={<SellerStorefront />} />
+          <Route path="/profile" element={<UserProfile />} />
           <Route path="/services" element={<BusinessDirectory />} />
           <Route path="/media" element={<BusinessDirectory />} />
           <Route path="/events" element={<BusinessDirectory />} />

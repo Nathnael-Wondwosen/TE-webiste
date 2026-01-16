@@ -173,8 +173,7 @@ const Navbar = () => {
                             if (user.role === 'Admin') {
                               navigate('/admin');
                             } else {
-                              // Add user dashboard route when available
-                              // navigate('/dashboard');
+                              navigate('/profile');
                             }
                             setProfileDropdownOpen(false);
                           }}

@@ -9,10 +9,23 @@ const SellerStorefront = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [cartItems, setCartItems] = useState(new Set());
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [activeMediaItems, setActiveMediaItems] = useState([]);
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
   const [activeIndices, setActiveIndices] = useState({});
+  
+  const loadCartStatus = async () => {
+    try {
+      const response = await api.get('/orders/cart');
+      const cartProducts = response.data.products || [];
+      const cartIds = new Set(cartProducts.map(item => item.product?._id));
+      setCartItems(cartIds);
+    } catch (error) {
+      console.error('Error loading cart status', error);
+      setCartItems(new Set());
+    }
+  };
   const [touchStart, setTouchStart] = useState({});
 
   const requireAuth = () => {
@@ -29,6 +42,8 @@ const SellerStorefront = () => {
     if (!requireAuth()) return;
     try {
       await api.post('/orders/cart', { productId, quantity: 1 });
+      // Update local cart status
+      setCartItems(prev => new Set([...prev, productId]));
     } catch (err) {
       console.error('Add to cart failed', err);
     }
@@ -42,6 +57,9 @@ const SellerStorefront = () => {
         setProfile(response.data.profile);
         setProducts(response.data.products || []);
         setError('');
+        
+        // Load cart status after products are loaded
+        await loadCartStatus();
       } catch (err) {
         console.error('Shop load error', err);
         setError('Shop not available right now.');
@@ -312,9 +330,13 @@ const SellerStorefront = () => {
                     </Link>
                     <button
                       onClick={(event) => handleAddToCart(event, product._id)}
-                      className="rounded-full border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition"
+                      className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                        cartItems.has(product._id)
+                          ? 'bg-emerald-500 border-emerald-500 text-white'
+                          : 'border border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                      }`}
                     >
-                      Add to cart
+                      {cartItems.has(product._id) ? 'In Cart' : 'Add to cart'}
                     </button>
                   </div>
                 </div>
