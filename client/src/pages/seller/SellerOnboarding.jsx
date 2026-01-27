@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import api from '../../services/api';
 
 const steps = [
@@ -9,6 +10,7 @@ const steps = [
 ];
 
 const SellerOnboarding = () => {
+  const { user: currentUser } = useSelector((state) => state.auth);
   const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(0);
   const [form, setForm] = useState({

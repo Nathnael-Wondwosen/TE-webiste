@@ -31,7 +31,7 @@ const ProductSchema = new mongoose.Schema(
     },
     subCategory: String,
     price: {
-      type: Number,
+      type: mongoose.Schema.Types.Mixed,
       required: true,
     },
     currency: {
@@ -72,6 +72,11 @@ const ProductSchema = new mongoose.Schema(
     approved: {
       type: Boolean,
       default: false,
+    },
+    listingType: {
+      type: String,
+      enum: ['sell', 'buy'],
+      default: 'sell',
     },
     status: {
       type: String,

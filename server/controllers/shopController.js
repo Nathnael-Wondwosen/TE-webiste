@@ -72,6 +72,47 @@ const getShopBySlug = async (req, res) => {
   }
 };
 
+const getAllShops = async (req, res) => {
+  try {
+    // Get all active seller profiles
+    const profiles = await SellerProfile.find({ status: 'active' })
+      .populate('seller', 'name email')
+      .sort({ createdAt: -1 });
+    
+    // For each profile, get their approved products count
+    const shopsWithStats = await Promise.all(profiles.map(async (profile) => {
+      const productCount = await Product.countDocuments({
+        seller: profile.seller._id,
+        status: 'approved',
+        approved: true,
+        verified: true
+      });
+      
+      return {
+        _id: profile._id,
+        shopName: profile.shopName,
+        slug: profile.slug,
+        logo: profile.logo,
+        banner: profile.banner,
+        bio: profile.bio,
+        address: profile.address,
+        socials: profile.socials,
+        status: profile.status,
+        seller: profile.seller,
+        productCount,
+        createdAt: profile.createdAt,
+        updatedAt: profile.updatedAt
+      };
+    }));
+    
+    res.json({ shops: shopsWithStats });
+  } catch (error) {
+    console.error('Get all shops error', error);
+    res.status(500).json({ message: 'Unable to fetch shops' });
+  }
+};
+
 module.exports = {
   getShopBySlug,
+  getAllShops,
 };

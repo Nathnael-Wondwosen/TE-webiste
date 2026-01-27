@@ -263,6 +263,37 @@ const activateAllSellerProfiles = async (req, res) => {
   }
 };
 
+const updateUserStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    const allowed = ['active', 'pending', 'suspended'];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+    
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Update user status - for B2B users we may need to update their verification status
+    if (status === 'active') {
+      user.isVerified = true;
+    } else if (status === 'pending') {
+      user.isVerified = false;
+    }
+    
+    // You can add more status-related logic here if needed
+    // For example, updating a status field if one exists
+    
+    await user.save();
+    res.json(user);
+  } catch (error) {
+    console.error('Update user status error', error);
+    res.status(500).json({ message: 'Unable to update user status' });
+  }
+};
+
 const deleteUser = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -290,7 +321,7 @@ const deleteUser = async (req, res) => {
         // Invalidate user sessions before deleting
         console.log('Invalidating user sessions...');
         await UserSession.updateMany(
-          { userId: userId, isActive: true },
+          { user: userId, isActive: true },
           { isActive: false, invalidatedAt: new Date(), invalidatedReason: 'deleted' }
         );
         
@@ -323,7 +354,7 @@ const deleteUser = async (req, res) => {
       // Invalidate user sessions before deleting
       console.log('Invalidating user sessions...');
       await UserSession.updateMany(
-        { userId: userId, isActive: true },
+        { user: userId, isActive: true },
         { isActive: false, invalidatedAt: new Date(), invalidatedReason: 'deleted' }
       );
       
@@ -433,6 +464,7 @@ module.exports = {
   updateSellerStatus,
   fixAllProductsForSeller,
   activateAllSellerProfiles,
+  updateUserStatus,
   deleteUser,
   fixAllSellerProducts,
 };

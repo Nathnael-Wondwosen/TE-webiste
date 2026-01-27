@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../redux/authSlice';
 import { useNavigate } from 'react-router-dom';
@@ -64,20 +63,44 @@ const MobileMenu = ({ isOpen, onClose, navItems }) => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <button
-                    onClick={() => {
-                      if (user.role === 'Admin') {
+                  {/* Admin Dashboard */}
+                  {user.role === 'Admin' && (
+                    <button
+                      onClick={() => {
                         navigate('/admin');
-                      } else {
-                        // Add user dashboard route when available
-                        // navigate('/dashboard');
-                      }
-                      onClose();
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-emerald-50 rounded-lg transition-colors"
-                  >
-                    {user.role === 'Admin' ? 'Admin Dashboard' : 'My Profile'}
-                  </button>
+                        onClose();
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                    >
+                      Admin Dashboard
+                    </button>
+                  )}
+                  
+                  {/* Regular User Profile */}
+                  {user.role !== 'Admin' && !(user.role === 'Seller' || user.role === 'ProspectiveSeller') && (
+                    <button
+                      onClick={() => {
+                        navigate('/profile');
+                        onClose();
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                    >
+                      My Profile
+                    </button>
+                  )}
+                  
+                  {/* Seller Hub */}
+                  {(user.role === 'Seller' || user.role === 'ProspectiveSeller') && (
+                    <button
+                      onClick={() => {
+                        navigate('/seller');
+                        onClose();
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                    >
+                      Seller Hub
+                    </button>
+                  )}
                   <button
                     onClick={handleLogout}
                     className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-emerald-50 rounded-lg transition-colors"

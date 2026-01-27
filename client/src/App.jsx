@@ -17,11 +17,13 @@ import UserManagement from './pages/admin/UserManagement';
 import AdminProducts from './pages/admin/AdminProducts';
 import ProductApproval from './pages/admin/ProductApproval';
 import SellerManagement from './pages/admin/SellerManagement';
+import AdminB2BProducts from './pages/admin/AdminB2BProducts';
 
 import Cart from './pages/Cart';
 import About from './pages/About';
 import Eshop from './pages/Eshop';
 import BusinessDirectory from './pages/BusinessDirectory';
+
 import SellerStorefront from './pages/SellerStorefront';
 import SellerDashboard from './pages/seller/SellerDashboard';
 import SellerProducts from './pages/seller/SellerProducts';
@@ -34,6 +36,7 @@ import SellerOnboarding from './pages/seller/SellerOnboarding';
 import SellerProductCreate from './pages/seller/SellerProductCreate';
 import SellerProductEdit from './pages/seller/SellerProductEdit';
 import UserProfile from './pages/UserProfile';
+import B2BMarketplace from './pages/b2b/B2BMarketplace';
 
 function App() {
   const { user, status } = useSelector((state) => state.auth);
@@ -86,15 +89,17 @@ function App() {
   
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isSellerRoute = location.pathname.startsWith('/seller');
+  const isAuthPage = ['/login', '/register'].includes(location.pathname);
   
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 pb-0 md:pb-0">
-      {!isAdminRoute && !isSellerRoute && <Navbar />}
+      {!isAdminRoute && !isSellerRoute && !isAuthPage && <Navbar />}
       <main className="flex-1 w-full overflow-y-auto">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/marketplace" element={<Marketplace />} />
           <Route path="/business-directory" element={<BusinessDirectory />} />
+          <Route path="/b2b-marketplace" element={<B2BMarketplace />} />
           <Route path="/product/:id" element={<ProductDetails />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -117,6 +122,7 @@ function App() {
             <Route path="users" element={<UserManagement />} />
             <Route path="products" element={<AdminProducts />} />
             <Route path="products/approvals" element={<ProductApproval />} />
+            <Route path="b2b-products" element={<AdminB2BProducts />} />
             <Route path="sellers" element={<SellerManagement />} />
             
             <Route path="categories" element={<div className="p-6">Categories Management</div>} />
@@ -146,7 +152,6 @@ function App() {
           </Route>
           <Route path="/seller" element={<Navigate to="/seller/" replace />} />
           
-
         </Routes>
       </main>
       {!isAdminRoute && !isSellerRoute && (

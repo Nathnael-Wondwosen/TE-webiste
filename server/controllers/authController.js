@@ -136,23 +136,29 @@ const register = async (req, res) => {
     // Handle role assignment based on user request
     let assignedRole = 'Buyer'; // Default role
     
-    if (role === 'Seller') {
-      // For sellers, assign 'ProspectiveSeller' initially
-      // They will go through onboarding before becoming active sellers
+    if (role === 'Seller' || role === 'ProspectiveSeller') {
+      // Keep eShop seller flow as-is
       assignedRole = 'ProspectiveSeller';
     } else if (['Admin', 'Buyer'].includes(role)) {
       assignedRole = role;
     }
     
-    const user = await User.create({
+    // Prepare user data based on role
+    const userData = {
       name,
       email,
       password,
       role: assignedRole,
       company: companyDoc ? companyDoc._id : undefined,
-    });
+    };
+    
+    console.log('Creating user with data:', JSON.stringify(userData, null, 2));
+    const user = await User.create(userData);
 
     const tokens = generateTokens(user._id, user.role);
+    
+    // Populate the user with company data for the response
+    const populatedUser = await User.findById(user._id).populate('company', 'name');
     
     res.status(201).json({
       user: {
@@ -160,6 +166,7 @@ const register = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        company: populatedUser.company,
       },
       ...tokens,
     });
@@ -172,7 +179,7 @@ const register = async (req, res) => {
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).populate('company', 'name');
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -190,6 +197,7 @@ const login = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        company: user.company,
       },
       ...tokens,
     });
@@ -199,8 +207,29 @@ const login = async (req, res) => {
   }
 };
 
-const getMe = (req, res) => {
-  res.json(req.user);
+const getMe = async (req, res) => {
+  try {
+    // Populate the company field to get company details
+    const userWithCompany = await req.user.populate('company', 'name');
+    
+    res.json({
+      id: req.user._id,
+      name: req.user.name,
+      email: req.user.email,
+      role: req.user.role,
+      picture: req.user.picture,
+      phone: req.user.phone,
+      address: req.user.address,
+      company: userWithCompany.company, // This will include the populated company object
+      country: req.user.country,
+      isVerified: req.user.isVerified,
+      createdAt: req.user.createdAt,
+      updatedAt: req.user.updatedAt,
+    });
+  } catch (error) {
+    console.error('GetMe error', error);
+    res.status(500).json({ message: 'Unable to fetch user data' });
+  }
 };
 
 // Google OAuth function
@@ -232,7 +261,7 @@ const googleAuth = async (req, res) => {
       let assignedRole = 'Buyer'; // Default role
       
       if (requestedRole === 'Seller') {
-        // For sellers, assign 'ProspectiveSeller' initially
+        // For eShop sellers, assign ProspectiveSeller initially
         assignedRole = 'ProspectiveSeller';
         console.log('Assigning ProspectiveSeller role for new seller');
       } else if (['Admin', 'Buyer'].includes(requestedRole)) {
@@ -242,14 +271,17 @@ const googleAuth = async (req, res) => {
         console.log('No valid role specified, defaulting to Buyer');
       }
       
-      user = await User.create({
+      // Prepare user data based on role
+      const userData = {
         name,
         email,
         googleId: sub,
         picture,
         isOAuthUser: true, // Mark as OAuth user
         role: assignedRole, // Assign role based on request or default
-      });
+      };
+      
+      user = await User.create(userData);
     }
 
     const tokens = generateTokens(user._id, user.role);
@@ -260,6 +292,7 @@ const googleAuth = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        company: user.company,
         picture: user.picture,
       },
       ...tokens,
@@ -434,6 +467,106 @@ const getProspectiveSellers = async (req, res) => {
   }
 };
 
+const updateProfile = async (req, res) => {
+  try {
+    const { name, email, phone, company, country, address } = req.body;
+    
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (email) updateData.email = email;
+    if (phone) updateData.phone = phone;
+    if (country) updateData.country = country;
+    if (address) updateData.address = address;
+    
+    // Handle company field - if it's a string, create or update the company document
+    if (company) {
+      if (typeof company === 'string') {
+        // Check if the string is a hex-encoded company name (could be Tradethiopia in hex: 54726164657468696f706961)
+        if (/^[0-9a-fA-F]+$/.test(company) && company.length % 2 === 0) {
+          try {
+            // Attempt to decode the hex string to get the original company name
+            let decodedCompanyName = '';
+            for (let i = 0; i < company.length; i += 2) {
+              decodedCompanyName += String.fromCharCode(parseInt(company.substr(i, 2), 16));
+            }
+            console.log(`Detected hex-encoded company name, decoded to: ${decodedCompanyName}`);
+            
+            // Use the decoded company name to create/update the company document
+            let companyDoc;
+            // Check if user already has a company document
+            const existingUser = await User.findById(req.user._id).populate('company');
+            if (existingUser.company) {
+              // Update existing company
+              companyDoc = await Company.findByIdAndUpdate(
+                existingUser.company._id,
+                { name: decodedCompanyName },
+                { new: true, runValidators: true }
+              );
+            } else {
+              // Create new company
+              companyDoc = await Company.create({ name: decodedCompanyName });
+            }
+            updateData.company = companyDoc._id;
+          } catch (decodeError) {
+            console.log(`Failed to decode hex company string: ${company}`, decodeError);
+            // If decoding fails, treat it as a regular company name
+            let companyDoc;
+            const existingUser = await User.findById(req.user._id).populate('company');
+            if (existingUser.company) {
+              companyDoc = await Company.findByIdAndUpdate(
+                existingUser.company._id,
+                { name: company },
+                { new: true, runValidators: true }
+              );
+            } else {
+              companyDoc = await Company.create({ name: company });
+            }
+            updateData.company = companyDoc._id;
+          }
+        } else {
+          // This is a regular company name, so create or update the company document
+          let companyDoc;
+          // Check if user already has a company document
+          const existingUser = await User.findById(req.user._id).populate('company');
+          if (existingUser.company) {
+            // Update existing company
+            companyDoc = await Company.findByIdAndUpdate(
+              existingUser.company._id,
+              { name: company },
+              { new: true, runValidators: true }
+            );
+          } else {
+            // Create new company
+            companyDoc = await Company.create({ name: company });
+          }
+          updateData.company = companyDoc._id;
+        }
+      } else {
+        // If company is already an ObjectId, use it directly
+        updateData.company = company;
+      }
+    }
+    
+    let user = await User.findByIdAndUpdate(
+      req.user._id,
+      updateData,
+      { new: true, runValidators: true }
+    ).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Populate the company field after update
+    user = await user.populate('company', 'name');
+    
+    res.json(user);
+  } catch (error) {
+    console.error('Update profile error', error);
+    res.status(500).json({ message: 'Unable to update profile' });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -444,4 +577,5 @@ module.exports = {
   createAdminBySuper,
   updateUserRole,
   getProspectiveSellers,
+  updateProfile,
 };

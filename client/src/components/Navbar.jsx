@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout, getMe } from '../redux/authSlice';
 import { useNavigate } from 'react-router-dom';
@@ -22,6 +22,7 @@ const Navbar = () => {
     { href: 'https://tradethiopiantv.com', label: 'TradeXTV' },
     { href: 'https://tradethiopiaexpo.com', label: 'Expo' },
     { href: '/business-directory', label: 'Business Directory' },
+    { href: '/b2b-marketplace', label: 'B2B Marketplace' },
   ];
   
   const handleLogout = () => {
@@ -64,7 +65,7 @@ const Navbar = () => {
               <div className="flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1">
                 <span className="text-xs font-semibold text-emerald-700">EN</span>
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
-                <span className="text-xs font-semibold text-emerald-700">አማ</span>
+                <span className="text-xs font-semibold text-emerald-700">áŠ áˆ›</span>
               </div>
               <a href="/about" className="flex items-center gap-2 font-medium hover:text-emerald-600 transition-colors">
                 About
@@ -126,11 +127,12 @@ const Navbar = () => {
                   
                   {profileDropdownOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-2 z-50">
-                      <div className="px-4 py-2 border-b border-slate-100">
+                                            <div className="px-4 py-2 border-b border-slate-100">
                         <p className="text-sm font-medium text-slate-900">{user.name || 'User'}</p>
                         <p className="text-xs text-slate-500 truncate">{user.email}</p>
                       </div>
                       <div className="py-1">
+                        {/* Seller Options */}
                         {(user.role === 'Seller' || user.role === 'ProspectiveSeller') && (
                           <>
                             <button
@@ -152,12 +154,12 @@ const Navbar = () => {
                                     navigate(`/shop/${sellerProfile.slug}`);
                                   } else {
                                     // Fallback if no slug exists
-                                    const fallbackSlug = user.name?.toLowerCase().replace(/\s+/g, '-') || user._id;
+                                    const fallbackSlug = user.name?.toLowerCase().replace(/\\s+/g, '-') || user._id;
                                     navigate(`/shop/${fallbackSlug}`);
                                   }
                                 } catch (error) {
                                   // Fallback if profile fetch fails
-                                  const fallbackSlug = user.name?.toLowerCase().replace(/\s+/g, '-') || user._id;
+                                  const fallbackSlug = user.name?.toLowerCase().replace(/\\s+/g, '-') || user._id;
                                   navigate(`/shop/${fallbackSlug}`);
                                 }
                                 setProfileDropdownOpen(false);
@@ -233,6 +235,10 @@ const Navbar = () => {
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
             Business Directory
           </a>
+          <a href="/b2b-marketplace" className="flex items-center gap-2 hover:text-emerald-200 transition-colors">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+            B2B Marketplace
+          </a>
         </div>
       </nav>
       <MobileMenu 
@@ -245,3 +251,6 @@ const Navbar = () => {
 };
 
 export default Navbar;
+
+
+

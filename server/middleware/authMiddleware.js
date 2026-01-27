@@ -20,7 +20,7 @@ const authMiddleware = async (req, res, next) => {
     
     // Check if user session has been invalidated
     const session = await UserSession.findOne({
-      userId: decoded.id,
+      user: decoded.id,
       isActive: false
     });
     

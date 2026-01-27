@@ -1,5 +1,5 @@
 const express = require('express');
-const { register, login, getMe, googleAuth, refreshToken, createInitialAdmin, updateUserRole } = require('../controllers/authController');
+const { register, login, getMe, googleAuth, refreshToken, createInitialAdmin, updateUserRole, updateProfile } = require('../controllers/authController');
 const authMiddleware = require('../middleware/authMiddleware');
 const roleMiddleware = require('../middleware/roleMiddleware');
 
@@ -14,5 +14,8 @@ router.post('/initial-admin', createInitialAdmin);
 
 // Route to update user role (accessible by admin or user themselves)
 router.put('/users/:userId/role', authMiddleware, updateUserRole);
+
+// Route to update user profile
+router.put('/update-profile', authMiddleware, updateProfile);
 
 module.exports = router;

@@ -76,6 +76,17 @@ const AdminLayout = () => {
       ),
       section: 'Product Management'
     },
+    { 
+      id: 'b2b-products', 
+      label: 'B2B Products', 
+      path: '/admin/b2b-products', 
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m4-2V6a2 2 0 00-2-2h-3.5L12 5 9.5 4H6a2 2 0 00-2 2v2m0 0v8a2 2 0 002 2h12a2 2 0 002-2V8m-16 0h16" />
+        </svg>
+      ),
+      section: 'Product Management'
+    },
     // Business Operations Section
     { 
       id: 'categories', 

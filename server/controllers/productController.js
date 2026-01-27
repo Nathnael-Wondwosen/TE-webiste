@@ -191,6 +191,16 @@ const getProducts = async (req, res) => {
       }
     }
 
+    // Handle listingType filter
+    if (req.query.listingType) {
+      filters.listingType = req.query.listingType;
+    }
+    
+    // Handle seller filter
+    if (req.query.seller) {
+      filters.seller = req.query.seller;
+    }
+    
     let sortOptions = { createdAt: -1 };
     if (sortBy === 'price-asc') sortOptions = { price: 1 };
     if (sortBy === 'price-desc') sortOptions = { price: -1 };

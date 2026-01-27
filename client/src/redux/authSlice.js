@@ -71,6 +71,18 @@ export const googleAuth = createAsyncThunk(
   }
 );
 
+export const updateUserProfile = createAsyncThunk(
+  'auth/updateUserProfile',
+  async (userData, { rejectWithValue }) => {
+    try {
+      const { data } = await api.put('/auth/update-profile', userData);
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to update profile');
+    }
+  }
+);
+
 export const refreshToken = createAsyncThunk(
   'auth/refreshToken',
   async (_, { rejectWithValue }) => {
@@ -183,6 +195,13 @@ const authSlice = createSlice({
           localStorage.removeItem('token');
           localStorage.removeItem('refreshToken');
         }
+      })
+      .addCase(updateUserProfile.fulfilled, (state, action) => {
+        state.user = { ...state.user, ...action.payload };
+        state.error = null;
+      })
+      .addCase(updateUserProfile.rejected, (state, action) => {
+        state.error = action.payload;
       })
       .addCase(refreshToken.fulfilled, (state, action) => {
         state.status = 'succeeded';

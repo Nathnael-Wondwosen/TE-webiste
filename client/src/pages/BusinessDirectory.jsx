@@ -1,58 +1,45 @@
 import { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { fetchProducts } from '../redux/productSlice';
-import ProductCard from '../components/ProductCard';
+import { Link } from 'react-router-dom';
+import api from '../services/api';
 
 function BusinessDirectory() {
-  const dispatch = useDispatch();
-  const { items, status } = useSelector((state) => state.products);
+  const [shops, setShops] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedLocation, setSelectedLocation] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
-  const [viewMode, setViewMode] = useState('grid'); // grid or list
-
-  // Sample categories and locations - in a real app these would come from an API
-  const categories = [
-    { id: 'all', name: 'All Categories' },
-    { id: 'electronics', name: 'Electronics' },
-    { id: 'clothing', name: 'Clothing' },
-    { id: 'home-garden', name: 'Home & Garden' },
-    { id: 'automotive', name: 'Automotive' },
-    { id: 'health-beauty', name: 'Health & Beauty' },
-    { id: 'sports', name: 'Sports' },
-    { id: 'food', name: 'Food & Beverage' },
-  ];
-
-  const locations = [
-    { id: 'all', name: 'All Locations' },
-    { id: 'addis-ababa', name: 'Addis Ababa' },
-    { id: 'dire-dawa', name: 'Dire Dawa' },
-    { id: 'mekelle', name: 'Mekelle' },
-    { id: 'bahir-dar', name: 'Bahir Dar' },
-    { id: 'hawassa', name: 'Hawassa' },
-    { id: 'jimma', name: 'Jimma' },
-    { id: 'other', name: 'Other Cities' },
-  ];
+  const [viewMode, setViewMode] = useState('grid');
 
   useEffect(() => {
-    if (status === 'idle') {
-      dispatch(fetchProducts());
-    }
-  }, [dispatch, status]);
+    const fetchShops = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get('/shops');
+        setShops(response.data.shops || []);
+      } catch (error) {
+        console.error('Error fetching shops:', error);
+        setShops([]);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // Filter and sort products
-  const filteredAndSortedProducts = items
-    .filter(product => {
-      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           product.description?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = selectedCategory === 'all' || 
-                             product.category?.slug === selectedCategory ||
-                             product.category?.name.toLowerCase().replace(/\s+/g, '-') === selectedCategory;
-      const matchesLocation = selectedLocation === 'all' || 
-                             product.location?.toLowerCase().replace(/\s+/g, '-') === selectedLocation;
+    fetchShops();
+  }, []);
+
+  // Filter and sort shops
+  const filteredAndSortedShops = shops
+    .filter(shop => {
+      const matchesSearch = shop.shopName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           shop.bio?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           shop.seller?.name?.toLowerCase().includes(searchTerm.toLowerCase());
       
-      return matchesSearch && matchesCategory && matchesLocation;
+      const matchesLocation = selectedLocation === 'all' || 
+                             (shop.address?.city && shop.address.city.toLowerCase().replace(/\s+/g, '-') === selectedLocation) ||
+                             (shop.address?.country && shop.address.country.toLowerCase().replace(/\s+/g, '-') === selectedLocation);
+      
+      return matchesSearch && matchesLocation;
     })
     .sort((a, b) => {
       switch (sortBy) {
@@ -60,25 +47,204 @@ function BusinessDirectory() {
           return new Date(b.createdAt) - new Date(a.createdAt);
         case 'oldest':
           return new Date(a.createdAt) - new Date(b.createdAt);
-        case 'price-low':
-          return a.price - b.price;
-        case 'price-high':
-          return b.price - a.price;
         case 'name-asc':
-          return a.name.localeCompare(b.name);
+          return a.shopName.localeCompare(b.shopName);
         case 'name-desc':
-          return b.name.localeCompare(a.name);
+          return b.shopName.localeCompare(a.shopName);
+        case 'products':
+          return b.productCount - a.productCount;
         default:
           return 0;
       }
     });
 
+  // Extract unique locations from shops
+  const allLocations = shops.flatMap(shop => {
+    const locations = [];
+    if (shop.address?.city) locations.push(shop.address.city);
+    if (shop.address?.country) locations.push(shop.address.country);
+    return locations;
+  });
+  
+  const uniqueLocations = [...new Set(allLocations.map(loc => loc.toLowerCase().replace(/\s+/g, '-')))];
+
+  const locations = [
+    { id: 'all', name: 'All Locations' },
+    ...uniqueLocations.map(loc => ({ id: loc, name: loc.replace('-', ' ') }))
+  ];
+
   const stats = {
-    totalBusinesses: items.length,
-    activeListings: filteredAndSortedProducts.length,
-    categories: categories.length - 1, // excluding 'all'
+    totalBusinesses: shops.length,
+    activeListings: filteredAndSortedShops.length,
     locations: locations.length - 1, // excluding 'all'
+    totalProducts: shops.reduce((sum, shop) => sum + (shop.productCount || 0), 0),
   };
+
+  const ShopCard = ({ shop }) => (
+    <Link 
+      to={`/seller/${shop.slug}`} 
+      className="block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg hover:scale-105 transition-all duration-300 transform"
+    >
+      <div className="relative h-48 overflow-hidden">
+        {shop.banner ? (
+          <img 
+            src={shop.banner} 
+            alt={shop.shopName} 
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              e.target.style.display = 'none';
+              e.target.nextSibling.style.display = 'flex';
+            }}
+          />
+        ) : (
+          <div className="hidden w-full h-full bg-gradient-to-br from-emerald-100 to-teal-100 items-center justify-center">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                <span className="text-white text-2xl font-bold">
+                  {shop.shopName?.charAt(0)?.toUpperCase()}
+                </span>
+              </div>
+              <p className="text-gray-600 font-medium">{shop.shopName}</p>
+            </div>
+          </div>
+        )}
+        <div className="absolute top-4 left-4">
+          {shop.logo ? (
+            <img 
+              src={shop.logo} 
+              alt={shop.shopName} 
+              className="w-16 h-16 rounded-full border-4 border-white shadow-lg object-cover"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.parentElement.querySelector('.logo-placeholder').style.display = 'flex';
+              }}
+            />
+          ) : (
+            <div className="logo-placeholder w-16 h-16 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 border-4 border-white shadow-lg flex items-center justify-center">
+              <span className="text-white text-xl font-bold">
+                {shop.shopName?.charAt(0)?.toUpperCase()}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      <div className="p-6">
+        <h3 className="text-xl font-bold text-gray-900 mb-2">{shop.shopName}</h3>
+        <p className="text-gray-600 text-sm mb-3 line-clamp-2">{shop.bio}</p>
+        
+        <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
+          <div className="flex items-center gap-1">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            <span>{shop.seller?.name}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            <span>{shop.productCount || 0} products</span>
+          </div>
+        </div>
+        
+        {(shop.address?.city || shop.address?.country) && (
+          <div className="flex items-center text-sm text-gray-500 mb-3">
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span>{shop.address?.city || shop.address?.country}</span>
+          </div>
+        )}
+        
+        <div className="flex items-center justify-between">
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+            {shop.status.charAt(0).toUpperCase() + shop.status.slice(1)}
+          </span>
+          <button className="text-emerald-600 hover:text-emerald-700 font-medium text-sm flex items-center">
+            Visit Shop
+            <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </Link>
+  );
+
+  const ShopListItem = ({ shop }) => (
+    <Link 
+      to={`/seller/${shop.slug}`} 
+      className="block bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-lg hover:scale-[1.02] transition-all duration-300"
+    >
+      <div className="flex items-start gap-6">
+        <div className="flex-shrink-0">
+          {shop.logo ? (
+            <img 
+              src={shop.logo} 
+              alt={shop.shopName} 
+              className="w-20 h-20 rounded-full border-4 border-white shadow-lg object-cover"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.nextSibling.style.display = 'flex';
+              }}
+            />
+          ) : (
+            <div className="w-20 h-20 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 border-4 border-white shadow-lg flex items-center justify-center">
+              <span className="text-white text-2xl font-bold">
+                {shop.shopName?.charAt(0)?.toUpperCase()}
+              </span>
+            </div>
+          )}
+        </div>
+        
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between mb-2">
+            <h3 className="text-xl font-bold text-gray-900">{shop.shopName}</h3>
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+              {shop.status.charAt(0).toUpperCase() + shop.status.slice(1)}
+            </span>
+          </div>
+          
+          <p className="text-gray-600 mb-3 line-clamp-2">{shop.bio}</p>
+          
+          <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
+            <div className="flex items-center gap-1">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <span>{shop.seller?.name}</span>
+            </div>
+            
+            <div className="flex items-center gap-1">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              <span>{shop.productCount || 0} products</span>
+            </div>
+            
+            {(shop.address?.city || shop.address?.country) && (
+              <div className="flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span>{shop.address?.city || shop.address?.country}</span>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        <button className="text-emerald-600 hover:text-emerald-700 font-medium text-sm flex items-center">
+          Visit Shop
+          <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+    </Link>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -109,8 +275,8 @@ function BusinessDirectory() {
               <div className="text-sm text-gray-600">Active Listings</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-emerald-600">{stats.categories}</div>
-              <div className="text-sm text-gray-600">Categories</div>
+              <div className="text-3xl font-bold text-emerald-600">{stats.totalProducts}</div>
+              <div className="text-sm text-gray-600">Total Products</div>
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-emerald-600">{stats.locations}</div>
@@ -134,7 +300,7 @@ function BusinessDirectory() {
                 </div>
                 <input
                   type="text"
-                  placeholder="Search businesses, products, or services..."
+                  placeholder="Search businesses, shops, or owners..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
@@ -143,17 +309,7 @@ function BusinessDirectory() {
             </div>
 
             {/* Filters */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full lg:w-auto">
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="block w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              >
-                {categories.map(category => (
-                  <option key={category.id} value={category.id}>{category.name}</option>
-                ))}
-              </select>
-
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 w-full lg:w-auto">
               <select
                 value={selectedLocation}
                 onChange={(e) => setSelectedLocation(e.target.value)}
@@ -171,10 +327,9 @@ function BusinessDirectory() {
               >
                 <option value="newest">Newest First</option>
                 <option value="oldest">Oldest First</option>
-                <option value="price-low">Price: Low to High</option>
-                <option value="price-high">Price: High to Low</option>
                 <option value="name-asc">Name: A to Z</option>
                 <option value="name-desc">Name: Z to A</option>
+                <option value="products">Most Products First</option>
               </select>
             </div>
 
@@ -205,20 +360,20 @@ function BusinessDirectory() {
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-6">
           <p className="text-gray-600">
-            Showing {filteredAndSortedProducts.length} of {items.length} businesses
+            Showing {filteredAndSortedShops.length} of {shops.length} businesses
           </p>
-          {filteredAndSortedProducts.length === 0 && searchTerm && (
+          {filteredAndSortedShops.length === 0 && searchTerm && (
             <p className="text-emerald-600 font-medium">
               No businesses found for "{searchTerm}". Try different keywords.
             </p>
           )}
         </div>
 
-        {status === 'loading' ? (
+        {loading ? (
           <div className="flex justify-center items-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500"></div>
           </div>
-        ) : filteredAndSortedProducts.length === 0 ? (
+        ) : filteredAndSortedShops.length === 0 ? (
           <div className="text-center py-12">
             <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -234,9 +389,9 @@ function BusinessDirectory() {
               ? "grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" 
               : "space-y-6"
           }>
-            {filteredAndSortedProducts.map((product) => (
-              <div key={product._id} className={viewMode === 'list' ? "bg-white rounded-lg shadow-sm border border-gray-200 p-6" : ""}>
-                <ProductCard product={product} />
+            {filteredAndSortedShops.map((shop) => (
+              <div key={shop._id}>
+                {viewMode === 'list' ? <ShopListItem shop={shop} /> : <ShopCard shop={shop} />}
               </div>
             ))}
           </div>
@@ -254,12 +409,12 @@ function BusinessDirectory() {
               Join Ethiopia's premier business directory and connect with customers across the country.
             </p>
             <div className="mt-8">
-              <a
-                href="/register"
+              <Link
+                to="/seller/onboarding"
                 className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-emerald-700 bg-white hover:bg-emerald-50"
               >
                 Register Your Business
-              </a>
+              </Link>
             </div>
           </div>
         </div>

@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
 
 const UserProfile = () => {
   const { user } = useSelector((state) => state.auth);
+  const navigate = useNavigate();
   const [favorites, setFavorites] = useState([]);
   const [favoritesProducts, setFavoritesProducts] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
@@ -47,7 +49,7 @@ const UserProfile = () => {
     };
 
     loadData();
-  }, []);
+  }, [user, navigate]);
 
   if (loading) {
     return (
@@ -179,6 +181,17 @@ const UserProfile = () => {
               </div>
             </div>
           </div>
+          {/* Seller Navigation Buttons */}
+          <div className="flex flex-wrap justify-center gap-3 mt-4">
+            {(user.role === 'Seller' || user.role === 'ProspectiveSeller') && (
+              <button
+                onClick={() => navigate('/seller')}
+                className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg font-medium hover:shadow-md transition-all duration-300 flex items-center gap-2"
+              >
+                <span>🏪</span> Seller Hub
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -262,6 +275,33 @@ const UserProfile = () => {
                         <div>
                           <h3 className="text-white/80 text-xs sm:text-sm font-medium">Full Name</h3>
                           <p className="text-base sm:text-xl font-bold text-white mt-1">{user?.name}</p>
+                          {user?.company && (
+                            <div className="mt-1 text-sm text-emerald-300">
+                              <span className="font-medium">Company:</span> {typeof user.company === 'object' ? user.company.name : 
+                                (() => {
+                                  // Check if it's a hex string and convert if needed
+                                  const companyValue = user.company;
+                                  if (typeof companyValue === 'string' && /^[0-9a-fA-F]+$/.test(companyValue) && companyValue.length % 2 === 0) {
+                                    try {
+                                      // Convert hex string to regular string
+                                      let str = '';
+                                      for (let i = 0; i < companyValue.length; i += 2) {
+                                        str += String.fromCharCode(parseInt(companyValue.substr(i, 2), 16));
+                                      }
+                                      return str;
+                                    } catch (e) {
+                                      return companyValue; // Return original if conversion fails
+                                    }
+                                  }
+                                  return companyValue;
+                                })()}
+                            </div>
+                          )}
+                          {user?.country && (
+                            <div className="mt-1 text-sm text-cyan-300">
+                              <span className="font-medium">Country:</span> {user.country}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

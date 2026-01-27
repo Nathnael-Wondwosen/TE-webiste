@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 
 const SellerDashboard = () => {
+  const { user } = useSelector((state) => state.auth);
+  const navigate = useNavigate();
   const [overview, setOverview] = useState(null);
   const [recentOrders, setRecentOrders] = useState([]);
   const [topProducts, setTopProducts] = useState([]);
@@ -39,7 +43,7 @@ const SellerDashboard = () => {
     };
 
     fetchOverview();
-  }, []);
+  }, [user, navigate]);
 
   const metrics = [
     {

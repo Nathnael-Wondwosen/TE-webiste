@@ -29,6 +29,7 @@ const UserSchema = new mongoose.Schema(
     },
     phone: String,
     address: String,
+    country: String,
     isVerified: {
       type: Boolean,
       default: false,
