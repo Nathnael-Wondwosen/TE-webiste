@@ -1,216 +1,182 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { registerUser, googleAuth } from '../redux/authSlice';
 import { useNavigate } from 'react-router-dom';
+import { registerUser } from '../redux/authSlice';
 
 function Register() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { status, error, user } = useSelector((state) => state.auth);
+  const { user, status, error } = useSelector((state) => state.auth);
+
   const [form, setForm] = useState({
     name: '',
     email: '',
     password: '',
-    role: 'Buyer', // Default role
+    role: 'Buyer',
+    company: '',
   });
-  const googleButtonRef = useRef(null);
-  
+  const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState({});
+
   useEffect(() => {
-    // Redirect if already logged in
     if (user) {
       navigate('/');
     }
-    
-    // Initialize Google button when component mounts
-    handleGoogleRegister();
   }, [user, navigate]);
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    dispatch(registerUser(form));
-  };
-  
-  const handleGoogleRegister = () => {
-    try {
-      // Load Google SDK if not already loaded
-      if (!window.google) {
-        const script = document.createElement('script');
-        script.src = 'https://accounts.google.com/gsi/client';
-        script.async = true;
-        script.defer = true;
-        script.onload = initGoogleRegister;
-        script.onerror = () => {
-          console.error('Failed to load Google SDK');
-          alert('Failed to load Google authentication. Please check your connection and try again.');
-        };
-        document.head.appendChild(script);
-      } else {
-        initGoogleRegister();
-      }
-    } catch (error) {
-      console.error('Error in Google registration:', error);
-      alert('An error occurred during Google registration. Please try again.');
-    }
-  };
-  
-  const initGoogleRegister = () => {
-    try {
-      /* global google */
-      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-      if (!clientId) {
-        console.error('Google Client ID is not configured in environment variables');
-        alert('Google authentication is not properly configured. Please contact support.');
-        return;
-      }
-      
-      google.accounts.id.initialize({
-        client_id: clientId,
-        callback: handleCredentialResponse,
-        auto_select: false,
-        cancel_on_tap_outside: true,
-      });
-      
-      // Wait for the DOM to be ready before rendering the button
-      setTimeout(() => {
-        const buttonDiv = document.getElementById('google-signup-button');
-        if (buttonDiv) {
-          // Render the Google Identity Services button
-          google.accounts.id.renderButton(
-            buttonDiv,
-            { theme: 'outline', size: 'large', width: '400', text: 'signup_with' }
-          );
-        } else {
-          console.error('Google button container element not found');
-        }
-      }, 100);
-      
-      // Disable the automatic One Tap prompt
-      google.accounts.id.disableAutoSelect();
-    } catch (error) {
-      console.error('Error initializing Google login:', error);
-      alert('Error initializing Google authentication. Please try again.');
-    }
-  };
-  
-  const handleCredentialResponse = (response) => {
-    try {
-      if (response && response.credential) {
-        // Capture the current role selection at the time of authentication
-        const currentRole = document.querySelector('input[name="role"]:checked')?.value || 'Buyer';
-        console.log('Google auth - Selected role:', currentRole);
-        
-        // Include the selected role in the Google auth request
-        dispatch(googleAuth({ tokenId: response.credential, role: currentRole }));
-      } else {
-        console.error('No credential received from Google');
-        alert('Failed to authenticate with Google. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error handling Google credential response:', error);
-      alert('An error occurred during Google authentication. Please try again.');
-    }
+  const validate = () => {
+    const next = {};
+    if (!form.name.trim()) next.name = 'Name is required';
+    if (!form.email.trim()) next.email = 'Email is required';
+    else if (!/\S+@\S+\.\S+/.test(form.email)) next.email = 'Email is invalid';
+    if (!form.password) next.password = 'Password is required';
+    else if (form.password.length < 6) next.password = 'Password must be at least 6 characters';
+    setErrors(next);
+    return Object.keys(next).length === 0;
   };
 
-  const googleLoginHandler = (event) => {
-    event.preventDefault();
-    // Initialize Google login when the button is clicked
-    handleGoogleRegister();
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!validate()) return;
+    dispatch(registerUser(form));
   };
-  
+
   return (
-    <section className="max-w-md mx-auto px-4 py-12">
-      <div className="bg-white p-8 rounded-3xl shadow">
-        <h1 className="text-2xl font-semibold mb-6">Join Tradethiopia</h1>
-        <p className="text-sm text-slate-600 mb-6">Create an account to buy products or sell on Ethiopia's leading B2B marketplace.</p>
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <label className="block text-sm font-medium text-slate-700">
-            Full Name
-            <input
-              type="text"
-              value={form.name}
-              onChange={(event) => setForm({ ...form, name: event.target.value })}
-              className="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-2 focus:border-emerald-500 outline-none"
-              required
-            />
-          </label>
-          <label className="block text-sm font-medium text-slate-700">
-            Email
-            <input
-              type="email"
-              value={form.email}
-              onChange={(event) => setForm({ ...form, email: event.target.value })}
-              className="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-2 focus:border-emerald-500 outline-none"
-              required
-            />
-          </label>
-          <label className="block text-sm font-medium text-slate-700">
-            Password
-            <input
-              type="password"
-              value={form.password}
-              onChange={(event) => setForm({ ...form, password: event.target.value })}
-              className="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-2 focus:border-emerald-500 outline-none"
-              required
-            />
-          </label>
-          <div className="mt-4">
-            <p className="text-sm font-medium text-slate-700 mb-3">Account Type</p>
-            <div className="flex space-x-6">
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="role"
-                  value="Buyer"
-                  checked={form.role === 'Buyer'}
-                  onChange={(event) => setForm({ ...form, role: event.target.value })}
-                  className="h-4 w-4 text-emerald-600 focus:ring-emerald-500"
-                />
-                <span className="text-sm font-medium text-slate-700">Buyer</span>
-              </label>
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="role"
-                  value="Seller"
-                  checked={form.role === 'Seller'}
-                  onChange={(event) => setForm({ ...form, role: event.target.value })}
-                  className="h-4 w-4 text-emerald-600 focus:ring-emerald-500"
-                />
-                <span className="text-sm font-medium text-slate-700">Seller</span>
-              </label>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
+        <div className="relative bg-gradient-to-br from-emerald-700 via-emerald-600 to-teal-600 text-white p-8 sm:p-10">
+          <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_20%_20%,_white,_transparent_25%),radial-gradient(circle_at_80%_0,_white,_transparent_20%),radial-gradient(circle_at_50%_80%,_white,_transparent_30%)]" />
+          <div className="relative space-y-4">
+            <p className="text-xs uppercase tracking-[0.3em] text-emerald-100">Join TradeEthiopia</p>
+            <h1 className="text-3xl sm:text-4xl font-bold leading-tight">Create your account</h1>
+            <p className="text-emerald-50 text-sm sm:text-base max-w-xl">
+              Sell and buy confidently with verified buyers and sellers. Admins keep the marketplace clean; you focus on great products.
+            </p>
+            <div className="grid grid-cols-3 gap-3 pt-4">
+              {['Secure payments', 'Modern storefront', 'Seller analytics'].map((item) => (
+                <div key={item} className="rounded-2xl bg-white/10 border border-white/20 p-4 text-sm font-semibold">
+                  {item}
+                </div>
+              ))}
             </div>
-          </div>
-          {form.role === 'Seller' && (
-            <div className="mt-4 text-xs text-amber-600 bg-amber-50 p-3 rounded-lg border border-amber-100">
-              <p>As a seller, you'll need to complete onboarding to verify your business before listing products.</p>
-            </div>
-          )}
-          <button
-            type="submit"
-            className="w-full rounded-full bg-emerald-600 text-white py-2 text-sm font-semibold hover:bg-emerald-500 transition"
-          >
-            {status === 'loading' ? 'Creating account...' : 'Register Account'}
-          </button>
-          {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
-        </form>
-        <div className="mt-6">          
-          <div className="mt-4">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-200"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-slate-500">Or sign up with</span>
-              </div>
-            </div>
-            <div id="google-signup-button" className="w-full flex justify-center mt-4"></div>
           </div>
         </div>
-        <div className="mt-4 text-center text-sm text-slate-600">
-          Already have an account? <a href="/login" className="font-semibold text-emerald-600 hover:text-emerald-500">Sign in</a>
+
+        <div className="p-6 sm:p-8 bg-white">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-slate-900">Create your account</h2>
+              <button
+                type="button"
+                onClick={() => navigate('/login')}
+                className="text-sm font-semibold text-emerald-700 hover:text-emerald-800"
+              >
+                Have an account?
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setForm((prev) => ({ ...prev, role: 'Buyer' }))}
+                className={`rounded-xl border px-4 py-3 text-sm font-semibold ${
+                  form.role === 'Buyer'
+                    ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                    : 'border-slate-200 text-slate-700 hover:border-emerald-200'
+                }`}
+              >
+                Register as Buyer
+              </button>
+              <button
+                type="button"
+                onClick={() => setForm((prev) => ({ ...prev, role: 'Seller' }))}
+                className={`rounded-xl border px-4 py-3 text-sm font-semibold ${
+                  form.role === 'Seller'
+                    ? 'border-amber-300 bg-amber-50 text-amber-800'
+                    : 'border-slate-200 text-slate-700 hover:border-amber-200'
+                }`}
+              >
+                Register as Seller
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-600 uppercase tracking-[0.15em]">Full name</label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                className={`w-full rounded-xl border px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400 ${
+                  errors.name ? 'border-rose-300' : 'border-slate-200'
+                }`}
+                placeholder="e.g., Buna Tale"
+              />
+              {errors.name && <p className="text-xs text-rose-600">{errors.name}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-600 uppercase tracking-[0.15em]">Email</label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                className={`w-full rounded-xl border px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400 ${
+                  errors.email ? 'border-rose-300' : 'border-slate-200'
+                }`}
+                placeholder="you@example.com"
+              />
+              {errors.email && <p className="text-xs text-rose-600">{errors.email}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-600 uppercase tracking-[0.15em]">Password</label>
+              <div className={`flex items-center rounded-xl border px-3 ${errors.password ? 'border-rose-300' : 'border-slate-200'}`}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  className="w-full py-2.5 text-sm outline-none"
+                  placeholder="At least 6 characters"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="text-xs font-semibold text-emerald-700"
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
+              {errors.password && <p className="text-xs text-rose-600">{errors.password}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-600 uppercase tracking-[0.15em]">Company (optional)</label>
+              <input
+                type="text"
+                value={form.company}
+                onChange={(e) => setForm({ ...form, company: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400"
+                placeholder="Company name"
+              />
+            </div>
+
+            {error && <p className="text-sm text-rose-600 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">{error}</p>}
+
+            <button
+              type="submit"
+              disabled={status === 'loading'}
+              className="w-full rounded-xl bg-emerald-600 text-white py-2.5 text-sm font-semibold hover:bg-emerald-700 transition disabled:opacity-60"
+            >
+              {status === 'loading' ? 'Creating account...' : 'Create account'}
+            </button>
+
+            <p className="text-xs text-slate-500 text-center">
+              By signing up you agree to our terms and confirm all B2B listings are posted by admins.
+            </p>
+          </form>
         </div>
       </div>
-    </section>
+    </div>
   );
 }
 
